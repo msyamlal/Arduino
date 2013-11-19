@@ -1,0 +1,5 @@
+SerialWriter	KEYWORD1
+begin	KEYWORD2
+test	KEYWORD2
+write	KEYWORD2
+baudRate	LITERAL1	Constants
