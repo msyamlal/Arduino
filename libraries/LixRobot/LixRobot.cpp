@@ -104,6 +104,7 @@ void Wheel::stop(){
 
     Mobile::Mobile()
 {
+    turning = false;
 }
 
 void Mobile::set(Wheel &lw, Wheel &rw, float wb)
@@ -115,6 +116,11 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
 }
 
 void Mobile::setVelocity(float v, float om)
+    /**
+     * @brief set the mobile's translation and and angular velocity
+     * @param v translational velocity, m/s
+     * @param om angular velocity, rad/s
+     */
 {
     velRadial = v;
     velAngular = om;
@@ -127,6 +133,46 @@ void Mobile::setVelocity(float v, float om)
     velY = velAngular * sin(direction);
 }
 
+void Mobile::turn (float v, float theta)
+/**
+    * @brief turn the mobile by the specified angle in radians
+    * @param v translational velocity, m/s
+    * @param theta angle to be turned, rad
+    */
+{
+    if(!turning){
+        turning = true;
+        turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/(float)v;
+        float vl = 0., vr = 0.;
+        if(theta > 0){
+            vl = 1.5*v/wheelLeft.getRadius();
+        }
+        else{
+            vr = 1.5*v/wheelRight.getRadius();
+        }
+        turningStartTime = millis();
+        wheelLeft.setVelocity(vl);
+        wheelRight.setVelocity(vr);
+    }
+    else{
+        if((millis() - turningStartTime) > turningDeltaTime){
+            turning = false;
+            wheelLeft.setVelocity(0.);
+            wheelRight.setVelocity(0.);
+        }
+        
+    }
+}
+    
+void Mobile::stopTurn ()
+/**
+    * @brief stop turning the mobile; cancels a previous turn command
+    */
+{
+    turning = false;
+}
+
+    
 void Mobile::updateState(){
     /*float dl = wheelLeft.senseDistance();
     float dr = wheelRight.senseDistance();

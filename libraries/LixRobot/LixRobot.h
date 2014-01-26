@@ -200,7 +200,9 @@ namespace LixRobot
     public:
         Mobile();
         void set(Wheel &, Wheel &, float);
-        void setVelocity(float, float);//translational and angular velocity
+        void setVelocity(float, float);
+        void turn(float, float);
+        void stopTurn();
         void updateState();
         void goToGoal(float, float);
         void stop();
@@ -220,6 +222,10 @@ namespace LixRobot
         float positionX;
         float positionY;
         float direction;
+        
+        bool turning;
+        unsigned long turningStartTime;
+        unsigned long turningDeltaTime;
     };
 
     class PIDController
