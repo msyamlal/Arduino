@@ -20,7 +20,7 @@
 
 
 //Make pin assignments
-//--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
+//{-------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
 #define PIN_DIR_A 4
 #define PIN_SPEED_A 5
@@ -35,11 +35,11 @@
 #define PIN_TRIG 11
 #define PIN_ECHO 12
 #endif
-//--------------------------------
+//--------------------------------}
 
 //Enable Device drivers
 
-//--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
+//{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
 // Motor controller:
 //#define ENABLE_MOTOR_ADAFRUIT
@@ -57,7 +57,7 @@
 //#define ENABLE_DISTANCE_SENSOR_NEWPING
 #define ENABLE_DISTANCE_SENSOR_HCSR04
 #endif
-//--------------------------------
+//--------------------------------}
 
 
 #ifdef ENABLE_BLUETOOTH
@@ -101,27 +101,16 @@ SoftwareSerial BTSerial(PIN_BT_RX, PIN_BT_TX);
 
 #include "LixRobot.h"
 #include <Wire.h>
+int dFront, rpmL, rpmR;
 
-//Arduino UNO board has two external interrupts:
-// numbers 0 (on digital pin 2) and 1 (on digital pin 3).
-unsigned long counter[2] =  {
-  0,0};
 
 //Initilizations
-//--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
+//{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-const int waitTime = 4000;
-unsigned long lastTime = 0;
-const float kp = 2.0 /(WHEEL_BASE * (TOO_FAR - TOO_CLOSE));
-int omSign = -1;
-int dFrontOld = TOO_FAR;
-int dFront, rpmL, rpmR;
 boolean turningBack = false;
-//boolean mobileStopped=false;
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
-//LixRobot::PIDController turnControl(0., 0., 0.);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
@@ -153,7 +142,6 @@ void receiveDataFromSlave()
 #ifdef ENABLE_SLAVE_MODE
 // function that executes whenever data is requested by master. This should exactly match
 // the function receiveDataFromSlave. This function is registered as an event, see setup()
-int dFront, rpmL, rpmR;
 int writeOrder = 0;
 boolean transmitReady = false;
 void sendDataToMaster()
@@ -180,10 +168,16 @@ void sendDataToMaster()
   }
 }
 
+//Arduino UNO board has two external interrupts:
+// numbers 0 (on digital pin 2) and 1 (on digital pin 3).
+unsigned long counter[2] =  {0,0};
+  
 LixRobot::WheelEncoder lwe(&counter[1], TICKS_PER_REVOLUTION),
-rwe(&counter[0], TICKS_PER_REVOLUTION );
+                       rwe(&counter[0], TICKS_PER_REVOLUTION );
 
 LixRobot::DistanceSensorHCSR04 distanceSensor(PIN_TRIG, PIN_ECHO, TOO_FAR);
+
+MovingAverage<unsigned int, 3> distanceAverage;
 
 
 void countIntL()
@@ -197,16 +191,15 @@ void countIntR()
 }
 
 #endif
-//--------------------------------
+//--------------------------------}
 
 
 void setup() {
   Serial.begin(9600);
   
-  //--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
+  //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
 
-  //turnControl.set(kp, 0.0, 0.0);
   lw.set(&lm, WHEEL_RADIUS);
   rw.set(&rm, WHEEL_RADIUS);
   m.set(lw, rw, WHEEL_BASE);
@@ -221,12 +214,12 @@ void setup() {
   //attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
   //attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
 #endif
-  //--------------------------------
+  //--------------------------------}
 }
 
 void loop()
 {
-  //--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
+  //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
   receiveDataFromSlave();
 
@@ -253,7 +246,8 @@ void loop()
   //--------ssssssssssssssssssssssssssss--------
 #ifdef ENABLE_SLAVE_MODE
   if(transmitReady==false){
-    dFront = distanceSensor.getDistance();
+    dFront = distanceAverage.add(distanceSensor.getDistance());
+    //dFront = distanceSensor.getDistance();
     dFront = min(255, dFront);
     //rpmL = (int)lwe.senseRPM();
     //rpmR = (int)rwe.senseRPM();
@@ -261,7 +255,7 @@ void loop()
   }
 #endif
 
-  //--------------------------------
+  //--------------------------------}
 }
 
 
