@@ -9,12 +9,13 @@
 
 // constants
 #define TOO_CLOSE 30                    /**< distance to obstacle in centimeters */
+#define CLOSE 60                    /**< distance to obstacle in centimeters */
 #define TOO_FAR (TOO_CLOSE * 7)   /**< maximum distance to track with sensor */
 #define TICKS_PER_REVOLUTION 10
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
-#define SPEED_FACTOR 5/23.26 //convert from speed in cm/s to input for motors
-#define MAX_OMEGA 80 //maximum angular velocity rad/s
+#define SPEED_FACTOR 5 //about 23 cm/s
+#define MAX_OMEGA 10 //maximum angular velocity rad/s
 //--------------------------------
 
 
@@ -109,21 +110,24 @@ unsigned long counter[2] =  {
 //Initilizations
 //--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-int sp = 0;
 const int waitTime = 4000;
 unsigned long lastTime = 0;
+const float kp = 2.0 /(WHEEL_BASE * (TOO_FAR - TOO_CLOSE));
 int omSign = -1;
+int dFrontOld = TOO_FAR;
+int dFront, rpmL, rpmR;
+boolean turningBack = false;
 //boolean mobileStopped=false;
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
-LixRobot::PIDController turnControl(0., 0., 0.);
+//LixRobot::PIDController turnControl(0., 0., 0.);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
-int dFrontOld = TOO_FAR;
 
-int dFront, rpmL, rpmR;
+// The master program calls this function to request data from slave. This should exactly match
+// the function sendDataToMaster.
 void receiveDataFromSlave()
 {
   //the following order should be used to write out data in the routine "sendDataToMaster"
@@ -132,7 +136,7 @@ void receiveDataFromSlave()
   { 
     dFront = Wire.read(); // receive a byte as integer
   }
-  Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
+  /*Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
   while(Wire.available())    // slave may send less than requested
   { 
     rpmL = Wire.read(); // receive a byte as integer
@@ -141,21 +145,20 @@ void receiveDataFromSlave()
   while(Wire.available())    // slave may send less than requested
   { 
     rpmR = Wire.read(); // receive a byte as integer
-  }
+  }*/
 }
 #endif
 
 //--------ssssssssssssssssssssssssssss--------
 #ifdef ENABLE_SLAVE_MODE
-// function that executes whenever data is requested by master
-// this function is registered as an event, see setup()
+// function that executes whenever data is requested by master. This should exactly match
+// the function receiveDataFromSlave. This function is registered as an event, see setup()
 int dFront, rpmL, rpmR;
 int writeOrder = 0;
 boolean transmitReady = false;
 void sendDataToMaster()
 {
   if(transmitReady){
-    //Serial.println(dFront);
     switch (writeOrder){
     case 0:
       Wire.write(dFront); // respond with message of 1 bytes as expected by master
@@ -168,11 +171,12 @@ void sendDataToMaster()
     case 2:
       Wire.write(rpmR); // respond with message of 1 bytes as expected by master
     }
-    writeOrder++;
+    /*writeOrder++;
     if(writeOrder > 2){
       writeOrder = 0;
       transmitReady = false; //No more data to transmit to master 
-    }
+    }*/
+      transmitReady = false; //No more data to transmit to master 
   }
 }
 
@@ -197,11 +201,12 @@ void countIntR()
 
 
 void setup() {
+  Serial.begin(9600);
+  
   //--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
 
-  float kp = 2.0 /(WHEEL_BASE * (TOO_FAR - TOO_CLOSE));
-  turnControl.set(kp, 0.0, 0.0);
+  //turnControl.set(kp, 0.0, 0.0);
   lw.set(&lm, WHEEL_RADIUS);
   rw.set(&rm, WHEEL_RADIUS);
   m.set(lw, rw, WHEEL_BASE);
@@ -213,55 +218,36 @@ void setup() {
 #ifdef ENABLE_SLAVE_MODE
   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
-  attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
-  attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
+  //attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
+  //attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
 #endif
   //--------------------------------
-  Serial.begin(9600);
 }
 
 void loop()
 {
   //--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-  sp = 20 * SPEED_FACTOR; //factor converts speed in cm/s
   receiveDataFromSlave();
-  Serial.println("");
-  Serial.println(dFront);
-  Serial.println(rpmL);
-  Serial.println(rpmR);
 
-  float e = min(0., dFront - TOO_FAR);
-  float om = abs(turnControl.signal(e, 0.0001) * sp);// need a dt for non-zero kI or kD
-  om = min(MAX_OMEGA, om);
-  if(dFrontOld < 100){
-    if(dFront < dFrontOld){
-      omSign = omSign * -1.0;
+  if(turningBack){
+    boolean y = m.finishTurn();
+    if(y) turningBack = false;
+  }
+  if(dFront < TOO_CLOSE) {
+    if(!turningBack){
+      turningBack = true;
+      m.stopTurn();
+      m.turn(-SPEED_FACTOR, PI);
     }
   }
-
-  om = om*omSign;
-  dFrontOld = dFront;
-
-  if(dFront < TOO_CLOSE){
-    m.setVelocity(-sp, om);
+  else if (dFront < CLOSE){
+    m.turn(SPEED_FACTOR, PI/2.);
   }
   else{
-    m.setVelocity(sp, om);
+    m.setVelocity(SPEED_FACTOR, 0.);
   }
-  if(dFront < TOO_CLOSE/3.) {
-    //mobileStopped = true;
-    m.stop();
-  }
-  
-  /*
-  if (!mobileStopped){
-   if(rpmL == 0 && rpmR ==0){
-   m.setVelocity(-sp, om);
-   }
-   }
-   */
-  delay(1000);
+  delay(100);
 #endif
 
   //--------ssssssssssssssssssssssssssss--------
@@ -269,8 +255,8 @@ void loop()
   if(transmitReady==false){
     dFront = distanceSensor.getDistance();
     dFront = min(255, dFront);
-    rpmL = (int)lwe.senseRPM();
-    rpmR = (int)rwe.senseRPM();
+    //rpmL = (int)lwe.senseRPM();
+    //rpmR = (int)rwe.senseRPM();
     transmitReady = true; //this flag is set to false after transmission is complete
   }
 #endif

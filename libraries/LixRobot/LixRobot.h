@@ -203,6 +203,7 @@ namespace LixRobot
         void setVelocity(float, float);
         void turn(float, float);
         void stopTurn();
+        bool finishTurn();
         void updateState();
         void goToGoal(float, float);
         void stop();

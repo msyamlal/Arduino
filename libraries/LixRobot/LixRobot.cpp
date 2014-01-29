@@ -122,15 +122,20 @@ void Mobile::setVelocity(float v, float om)
      * @param om angular velocity, rad/s
      */
 {
-    velRadial = v;
-    velAngular = om;
-    float vl = (2.0 * velRadial - velAngular * wheelBase)/ (2.0 * wheelLeft.getRadius());
-    float vr = (2.0 * velRadial + velAngular * wheelBase)/ (2.0 * wheelRight.getRadius());
-    wheelLeft.setVelocity(vl);
-    wheelRight.setVelocity(vr);
-
-    velX = velRadial * cos(direction);
-    velY = velAngular * sin(direction);
+    if(turning){
+        bool y = finishTurn();
+    }
+    else{
+        velRadial = v;
+        velAngular = om;
+        float vl = (2.0 * velRadial - velAngular * wheelBase)/ (2.0 * wheelLeft.getRadius());
+        float vr = (2.0 * velRadial + velAngular * wheelBase)/ (2.0 * wheelRight.getRadius());
+        wheelLeft.setVelocity(vl);
+        wheelRight.setVelocity(vr);
+        
+        velX = velRadial * cos(direction);
+        velY = velAngular * sin(direction);
+    }
 }
 
 void Mobile::turn (float v, float theta)
@@ -140,9 +145,13 @@ void Mobile::turn (float v, float theta)
     * @param theta angle to be turned, rad
     */
 {
-    if(!turning){
+    if(turning){
+        bool y = finishTurn();
+    }
+    else{
+        if(abs(v) < 1E-5) return;
         turning = true;
-        turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/(float)v;
+        turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
         float vl = 0., vr = 0.;
         if(theta > 0){
             vl = 1.5*v/wheelLeft.getRadius();
@@ -154,20 +163,28 @@ void Mobile::turn (float v, float theta)
         wheelLeft.setVelocity(vl);
         wheelRight.setVelocity(vr);
     }
+}
+    
+bool Mobile::finishTurn ()
+/**
+    * @brief if the turn finished stop turning the mobile
+*/
+{
+    if((millis() - turningStartTime) > turningDeltaTime){
+        turning = false;
+        wheelLeft.setVelocity(0.);
+        wheelRight.setVelocity(0.);
+        return true;
+    }
     else{
-        if((millis() - turningStartTime) > turningDeltaTime){
-            turning = false;
-            wheelLeft.setVelocity(0.);
-            wheelRight.setVelocity(0.);
-        }
-        
+        return false;
     }
 }
     
 void Mobile::stopTurn ()
 /**
     * @brief stop turning the mobile; cancels a previous turn command
-    */
+*/
 {
     turning = false;
 }
