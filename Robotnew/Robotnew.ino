@@ -108,6 +108,7 @@ int dFront, rpmL, rpmR;
 //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
 boolean turningBack = false;
+Timer slaveTimer(100);
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
@@ -221,7 +222,7 @@ void loop()
 {
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-  receiveDataFromSlave();
+  if(slaveTimer.done())receiveDataFromSlave();
 
   if(turningBack){
     boolean y = m.finishTurn();
@@ -240,7 +241,7 @@ void loop()
   else{
     m.setVelocity(SPEED_FACTOR, 0.);
   }
-  delay(100);
+  //delay(100);
 #endif
 
   //--------ssssssssssssssssssssssssssss--------

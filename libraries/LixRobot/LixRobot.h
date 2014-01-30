@@ -18,6 +18,7 @@
 
 #include "logging.h"
 #include "moving_average.h"
+#include "timer.h"
 
 
 namespace LixRobot

@@ -138,12 +138,12 @@ void Mobile::setVelocity(float v, float om)
     }
 }
 
-void Mobile::turn (float v, float theta)
 /**
-    * @brief turn the mobile by the specified angle in radians
-    * @param v translational velocity, m/s
-    * @param theta angle to be turned, rad
-    */
+ * @brief turn the mobile by the specified angle in radians
+ * @param v translational velocity, m/s
+ * @param theta angle to be turned, rad
+*/
+void Mobile::turn (float v, float theta)
 {
     if(turning){
         bool y = finishTurn();
