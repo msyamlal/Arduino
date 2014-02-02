@@ -107,6 +107,7 @@ int dFront, rpmL, rpmR;
 //Initilizations
 //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
+float turnAngle = PI;
 boolean turningBack = false;
 Timer slaveTimer(100);
 
@@ -127,15 +128,15 @@ void receiveDataFromSlave()
     dFront = Wire.read(); // receive a byte as integer
   }
   /*Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
-  while(Wire.available())    // slave may send less than requested
-  { 
-    rpmL = Wire.read(); // receive a byte as integer
-  }
-  Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
-  while(Wire.available())    // slave may send less than requested
-  { 
-    rpmR = Wire.read(); // receive a byte as integer
-  }*/
+   while(Wire.available())    // slave may send less than requested
+   { 
+   rpmL = Wire.read(); // receive a byte as integer
+   }
+   Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
+   while(Wire.available())    // slave may send less than requested
+   { 
+   rpmR = Wire.read(); // receive a byte as integer
+   }*/
 }
 #endif
 
@@ -161,20 +162,21 @@ void sendDataToMaster()
       Wire.write(rpmR); // respond with message of 1 bytes as expected by master
     }
     /*writeOrder++;
-    if(writeOrder > 2){
-      writeOrder = 0;
-      transmitReady = false; //No more data to transmit to master 
-    }*/
-      transmitReady = false; //No more data to transmit to master 
+     if(writeOrder > 2){
+     writeOrder = 0;
+     transmitReady = false; //No more data to transmit to master 
+     }*/
+    transmitReady = false; //No more data to transmit to master 
   }
 }
 
 //Arduino UNO board has two external interrupts:
 // numbers 0 (on digital pin 2) and 1 (on digital pin 3).
-unsigned long counter[2] =  {0,0};
-  
+unsigned long counter[2] =  {
+  0,0};
+
 LixRobot::WheelEncoder lwe(&counter[1], TICKS_PER_REVOLUTION),
-                       rwe(&counter[0], TICKS_PER_REVOLUTION );
+rwe(&counter[0], TICKS_PER_REVOLUTION );
 
 LixRobot::DistanceSensorHCSR04 distanceSensor(PIN_TRIG, PIN_ECHO, TOO_FAR);
 
@@ -197,7 +199,7 @@ void countIntR()
 
 void setup() {
   Serial.begin(9600);
-  
+
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
   // if analog input pin 0 is unconnected, random analog
@@ -215,7 +217,11 @@ void setup() {
 
   //--------ssssssssssssssssssssssssssss--------
 #ifdef ENABLE_SLAVE_MODE
-  Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
+   //Initialize the moving average with a large value
+   dFront = distanceAverage.add(TOO_FAR);
+   dFront = distanceAverage.add(TOO_FAR);
+   
+   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
   //attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
   //attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
@@ -228,15 +234,9 @@ void loop()
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
   if(slaveTimer.done())receiveDataFromSlave();
-  
-  float turnAngle = PI;
-// check a random number from 0 to 1
-  if(random(0, 2) == 0){
-    turnAngle *= -1;
-  }
-  
+
   if(turningBack){
-     if(m.finishTurn()) turningBack = false;
+    if(m.finishTurn()) turningBack = false;
   }
   if(dFront < TOO_CLOSE) {
     if(!turningBack){
@@ -246,6 +246,10 @@ void loop()
     }
   }
   else if (dFront < CLOSE){
+    // check a random number from 0 to 1
+    if(random(0, 2) == 0){
+      turnAngle *= -1;
+    }
     m.turn(SPEED_FACTOR, turnAngle/2.);
   }
   else{
@@ -268,6 +272,7 @@ void loop()
 
   //--------------------------------}
 }
+
 
 
 
