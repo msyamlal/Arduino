@@ -200,6 +200,11 @@ void setup() {
   
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
+  // if analog input pin 0 is unconnected, random analog
+  // noise will cause the call to randomSeed() to generate
+  // different seed numbers each time the sketch runs.
+  // randomSeed() will then shuffle the random function.
+  randomSeed(analogRead(0));
 
   lw.set(&lm, WHEEL_RADIUS);
   rw.set(&rm, WHEEL_RADIUS);
@@ -223,7 +228,13 @@ void loop()
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
   if(slaveTimer.done())receiveDataFromSlave();
-
+  
+  float turnAngle = PI;
+// check a random number from 0 to 1
+  if(random(0, 2) == 0){
+    turnAngle *= -1;
+  }
+  
   if(turningBack){
      if(m.finishTurn()) turningBack = false;
   }
@@ -231,11 +242,11 @@ void loop()
     if(!turningBack){
       turningBack = true;
       m.stopTurn();
-      m.turn(-SPEED_FACTOR, PI);
+      m.turn(-SPEED_FACTOR, turnAngle);
     }
   }
   else if (dFront < CLOSE){
-    m.turn(SPEED_FACTOR, PI/2.);
+    m.turn(SPEED_FACTOR, turnAngle/2.);
   }
   else{
     m.setVelocity(SPEED_FACTOR, 0.);
