@@ -10,6 +10,9 @@ public:
      * @brief Class constructor.
      * @param Timer interval.
      */
+    Timer ()
+    {
+    }
     Timer (unsigned int i)
     {
         interval = i;
@@ -23,6 +26,7 @@ public:
     void set(unsigned int i)
     {
         interval = i;
+        start();
     }
     
     /*

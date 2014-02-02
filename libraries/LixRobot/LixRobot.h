@@ -226,8 +226,7 @@ namespace LixRobot
         float direction;
         
         bool turning;
-        unsigned long turningStartTime;
-        unsigned long turningDeltaTime;
+        Timer turnTimer;
     };
 
     class PIDController

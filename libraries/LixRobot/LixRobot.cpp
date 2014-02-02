@@ -151,7 +151,6 @@ void Mobile::turn (float v, float theta)
     else{
         if(abs(v) < 1E-5) return;
         turning = true;
-        turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
         float vl = 0., vr = 0.;
         if(theta > 0){
             vl = 1.5*v/wheelLeft.getRadius();
@@ -159,7 +158,8 @@ void Mobile::turn (float v, float theta)
         else{
             vr = 1.5*v/wheelRight.getRadius();
         }
-        turningStartTime = millis();
+        unsigned long turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
+        turnTimer.set(turningDeltaTime);
         wheelLeft.setVelocity(vl);
         wheelRight.setVelocity(vr);
     }
@@ -170,7 +170,7 @@ bool Mobile::finishTurn ()
     * @brief if the turn finished stop turning the mobile
 */
 {
-    if((millis() - turningStartTime) > turningDeltaTime){
+      if(turnTimer.done()){
         turning = false;
         wheelLeft.setVelocity(0.);
         wheelRight.setVelocity(0.);

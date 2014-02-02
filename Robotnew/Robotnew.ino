@@ -8,9 +8,9 @@
 #define ENABLE_LOGGING
 
 // constants
-#define TOO_CLOSE 30                    /**< distance to obstacle in centimeters */
-#define CLOSE 60                    /**< distance to obstacle in centimeters */
-#define TOO_FAR (TOO_CLOSE * 7)   /**< maximum distance to track with sensor */
+#define TOO_CLOSE 30                /**< distance to obstacle in centimeters */
+#define CLOSE 60                    
+#define TOO_FAR (200)               
 #define TICKS_PER_REVOLUTION 10
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
@@ -225,8 +225,7 @@ void loop()
   if(slaveTimer.done())receiveDataFromSlave();
 
   if(turningBack){
-    boolean y = m.finishTurn();
-    if(y) turningBack = false;
+     if(m.finishTurn()) turningBack = false;
   }
   if(dFront < TOO_CLOSE) {
     if(!turningBack){
