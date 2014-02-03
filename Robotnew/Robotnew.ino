@@ -107,7 +107,7 @@ int dFront, rpmL, rpmR;
 //Initilizations
 //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-float turnAngle = PI;
+float turnAngle;
 boolean turningBack = false;
 Timer slaveTimer(100);
 
@@ -220,6 +220,7 @@ void setup() {
    //Initialize the moving average with a large value
    dFront = distanceAverage.add(TOO_FAR);
    dFront = distanceAverage.add(TOO_FAR);
+   dFront = distanceAverage.add(TOO_FAR);
    
    Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
@@ -248,7 +249,10 @@ void loop()
   else if (dFront < CLOSE){
     // check a random number from 0 to 1
     if(random(0, 2) == 0){
-      turnAngle *= -1;
+      turnAngle = -PI;
+    }
+    else{
+      turnAngle = PI;
     }
     m.turn(SPEED_FACTOR, turnAngle/2.);
   }
