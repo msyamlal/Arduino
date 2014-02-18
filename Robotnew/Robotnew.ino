@@ -15,7 +15,6 @@
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
 #define SPEED_FACTOR 5 //about 23 cm/s
-#define MAX_OMEGA 10 //maximum angular velocity rad/s
 //--------------------------------
 
 
@@ -127,16 +126,16 @@ void receiveDataFromSlave()
   { 
     dFront = Wire.read(); // receive a byte as integer
   }
-  /*Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
-   while(Wire.available())    // slave may send less than requested
-   { 
-   rpmL = Wire.read(); // receive a byte as integer
-   }
-   Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
-   while(Wire.available())    // slave may send less than requested
-   { 
-   rpmR = Wire.read(); // receive a byte as integer
-   }*/
+  Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
+  while(Wire.available())    // slave may send less than requested
+  { 
+    rpmL = Wire.read(); // receive a byte as integer
+  }
+  Wire.requestFrom(SLAVE_ADDRESS, 1);    // request 1 byte from slave device #sensorAddress
+  while(Wire.available())    // slave may send less than requested
+  { 
+    rpmR = Wire.read(); // receive a byte as integer
+  }
 }
 #endif
 
@@ -161,12 +160,11 @@ void sendDataToMaster()
     case 2:
       Wire.write(rpmR); // respond with message of 1 bytes as expected by master
     }
-    /*writeOrder++;
-     if(writeOrder > 2){
-     writeOrder = 0;
-     transmitReady = false; //No more data to transmit to master 
-     }*/
-    transmitReady = false; //No more data to transmit to master 
+    writeOrder++;
+    if(writeOrder > 2){
+      writeOrder = 0;
+      transmitReady = false; //No more data to transmit to master 
+    }
   }
 }
 
@@ -217,15 +215,15 @@ void setup() {
 
   //--------ssssssssssssssssssssssssssss--------
 #ifdef ENABLE_SLAVE_MODE
-   //Initialize the moving average with a large value
-   dFront = distanceAverage.add(TOO_FAR);
-   dFront = distanceAverage.add(TOO_FAR);
-   dFront = distanceAverage.add(TOO_FAR);
-   
-   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
+  //Initialize the moving average with a large value
+  dFront = distanceAverage.add(TOO_FAR);
+  dFront = distanceAverage.add(TOO_FAR);
+  dFront = distanceAverage.add(TOO_FAR);
+
+  Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
-  //attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
-  //attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
+  attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
+  attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
 #endif
   //--------------------------------}
 }
@@ -266,16 +264,16 @@ void loop()
 #ifdef ENABLE_SLAVE_MODE
   if(transmitReady==false){
     dFront = distanceAverage.add(distanceSensor.getDistance());
-    //dFront = distanceSensor.getDistance();
     dFront = min(255, dFront);
-    //rpmL = (int)lwe.senseRPM();
-    //rpmR = (int)rwe.senseRPM();
+    rpmL = (int)lwe.senseRPM();
+    rpmR = (int)rwe.senseRPM();
     transmitReady = true; //this flag is set to false after transmission is complete
   }
 #endif
 
   //--------------------------------}
 }
+
 
 
 

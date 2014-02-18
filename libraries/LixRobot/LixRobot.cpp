@@ -91,15 +91,15 @@ void Wheel::stop(){
         unsigned long currentTime = millis();
         unsigned long cC = *pCounter;
         
-        float revolutions = cC/countsPerRevolution;
         float deltaTime = (currentTime - lastTime);
+        float rpm = cC * 60. * 1000./((float)countsPerRevolution * deltaTime);
         
         //Serial.print("Wheel: cC = ");
-        //Serial.println(cC);
+        //Serial.println(rpm);
         
         *pCounter = 0;
         lastTime = currentTime;
-        return revolutions * 60. * 1000./deltaTime;
+        return rpm;
     }
 
     Mobile::Mobile()
