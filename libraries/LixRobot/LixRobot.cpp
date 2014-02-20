@@ -62,7 +62,7 @@ void Wheel::set(MotorDriver* mp, float r)
 
 void Wheel::setVelocity(float v)
 {
-    pMotor->setSpeed(v);
+    pMotor->setSpeed(v/radius);
     angularVelocity = pMotor->getSpeed();
 }
 
@@ -128,8 +128,8 @@ void Mobile::setVelocity(float v, float om)
     else{
         velRadial = v;
         velAngular = om;
-        float vl = (2.0 * velRadial - velAngular * wheelBase)/ (2.0 * wheelLeft.getRadius());
-        float vr = (2.0 * velRadial + velAngular * wheelBase)/ (2.0 * wheelRight.getRadius());
+        float vl = (2.0 * velRadial - velAngular * wheelBase)/ (2.0);
+        float vr = (2.0 * velRadial + velAngular * wheelBase)/ (2.0);
         wheelLeft.setVelocity(vl);
         wheelRight.setVelocity(vr);
         
@@ -153,10 +153,10 @@ void Mobile::turn (float v, float theta)
         turning = true;
         float vl = 0., vr = 0.;
         if(theta > 0){
-            vl = 1.5*v/wheelLeft.getRadius();
+            vl = 1.5*v;
         }
         else{
-            vr = 1.5*v/wheelRight.getRadius();
+            vr = 1.5*v;
         }
         unsigned long turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
         turnTimer.set(turningDeltaTime);

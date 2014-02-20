@@ -1,8 +1,7 @@
 /*select either master or slave mode. The master and slave codes can communicate only
  through the i2c bus, handled by the sendDataToMaster and receiveDataFromSlave routines.
  */
-#define ENABLE_MASTER_MODE
-//#define ENABLE_SLAVE_MODE
+//#define ENABLE_MASTER_MODE
 #define SLAVE_ADDRESS 44 //an arbitrary slave address
 
 #define ENABLE_LOGGING
@@ -27,10 +26,8 @@
 #define PIN_DIR_B 7
 #define PIN_BT_RX 16
 #define PIN_BT_TX 17
-#endif
-
 //--------ssssssssssssssssssssssssssss--------
-#ifdef ENABLE_SLAVE_MODE
+#else
 #define PIN_TRIG 11
 #define PIN_ECHO 12
 #endif
@@ -48,10 +45,8 @@
 //#define ENABLE_REMOTE_CONTROL_DRIVER_ROCKETBOT
 
 //#define ENABLE_BLUETOOTH
-#endif
-
 //--------ssssssssssssssssssssssssssss--------
-#ifdef ENABLE_SLAVE_MODE
+#else
 // Distance sensor
 //#define ENABLE_DISTANCE_SENSOR_NEWPING
 #define ENABLE_DISTANCE_SENSOR_HCSR04
@@ -137,10 +132,9 @@ void receiveDataFromSlave()
     rpmR = Wire.read(); // receive a byte as integer
   }
 }
-#endif
 
 //--------ssssssssssssssssssssssssssss--------
-#ifdef ENABLE_SLAVE_MODE
+#else
 // function that executes whenever data is requested by master. This should exactly match
 // the function receiveDataFromSlave. This function is registered as an event, see setup()
 int writeOrder = 0;
@@ -211,10 +205,9 @@ void setup() {
   m.set(lw, rw, WHEEL_BASE);
 
   Wire.begin();        // join i2c bus (address optional for master)
-#endif
 
   //--------ssssssssssssssssssssssssssss--------
-#ifdef ENABLE_SLAVE_MODE
+#else
   //Initialize the moving average with a large value
   dFront = distanceAverage.add(TOO_FAR);
   dFront = distanceAverage.add(TOO_FAR);
@@ -258,10 +251,9 @@ void loop()
     m.setVelocity(SPEED_FACTOR, 0.);
   }
   //delay(100);
-#endif
 
   //--------ssssssssssssssssssssssssssss--------
-#ifdef ENABLE_SLAVE_MODE
+#else
   if(transmitReady==false){
     dFront = distanceAverage.add(distanceSensor.getDistance());
     dFront = min(255, dFront);
