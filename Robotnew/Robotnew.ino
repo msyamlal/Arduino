@@ -1,9 +1,10 @@
-/*select either master or slave mode. The master and slave codes can communicate only
- through the i2c bus, handled by the sendDataToMaster and receiveDataFromSlave routines.
- */
-//#define ENABLE_MASTER_MODE
-#define SLAVE_ADDRESS 44 //an arbitrary slave address
+//Uncomment or comment the following line to select either master or slave mode.
+#define ENABLE_MASTER_MODE
 
+/*The master and slave codes can communicate only through the i2c bus,
+   handled by the sendDataToMaster and receiveDataFromSlave routines.
+*/
+#define SLAVE_ADDRESS 44 //an arbitrary slave address
 #define ENABLE_LOGGING
 
 // constants
@@ -226,7 +227,36 @@ void loop()
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
   if(slaveTimer.done())receiveDataFromSlave();
-
+  
+//Release the mobile if it gets stuck
+  if(abs(rpmR) < 5){
+    if(abs(m.getVelocity('R')) > 0){
+      if(turningBack){
+         m.stopTurn();
+         turningBack = false;
+         m.setVelocity(SPEED_FACTOR, 0.);
+      }
+      else{
+        m.stopTurn();
+        m.turn(-SPEED_FACTOR, 0.);
+      }
+    }
+  }
+  if(abs(rpmL) < 5){
+    if(abs(m.getVelocity('L')) > 0){
+      if(turningBack){
+         m.stopTurn();
+         turningBack = false;
+         m.setVelocity(SPEED_FACTOR, 0.);
+      }
+      else{
+        m.stopTurn();
+        m.turn(-SPEED_FACTOR, 0.);
+      }
+    }
+  }
+  
+  
   if(turningBack){
     if(m.finishTurn()) turningBack = false;
   }

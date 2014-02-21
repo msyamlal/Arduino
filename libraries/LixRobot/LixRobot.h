@@ -202,6 +202,7 @@ namespace LixRobot
         Mobile();
         void set(Wheel &, Wheel &, float);
         void setVelocity(float, float);
+        float getVelocity(char);
         void turn(float, float);
         void stopTurn();
         bool finishTurn();

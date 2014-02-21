@@ -62,13 +62,14 @@ void Wheel::set(MotorDriver* mp, float r)
 
 void Wheel::setVelocity(float v)
 {
-    pMotor->setSpeed(v/radius);
-    angularVelocity = pMotor->getSpeed();
+    int speed = v/radius;
+    pMotor->setSpeed(speed);
+    angularVelocity = (float)pMotor->getSpeed();
 }
 
 
 float Wheel::getVelocity(){
-    return angularVelocity;
+    return angularVelocity*radius;
 }
 
 
@@ -82,27 +83,27 @@ void Wheel::stop(){
     angularVelocity = 0;
 }
 
-    WheelEncoder::WheelEncoder(unsigned long* cp, int cpr){
-        pCounter = cp;
-        countsPerRevolution = cpr;
-    }
+WheelEncoder::WheelEncoder(unsigned long* cp, int cpr){
+    pCounter = cp;
+    countsPerRevolution = cpr;
+}
     
-    float WheelEncoder::senseRPM(){
-        unsigned long currentTime = millis();
-        unsigned long cC = *pCounter;
+float WheelEncoder::senseRPM(){
+    unsigned long currentTime = millis();
+    unsigned long cC = *pCounter;
         
-        float deltaTime = (currentTime - lastTime);
-        float rpm = cC * 60. * 1000./((float)countsPerRevolution * deltaTime);
+    float deltaTime = (currentTime - lastTime);
+    float rpm = cC * 60. * 1000./((float)countsPerRevolution * deltaTime);
         
-        //Serial.print("Wheel: cC = ");
-        //Serial.println(rpm);
+    //Serial.print("WheelEncoder::senseRPM: ");
+    //Serial.println(rpm);
         
-        *pCounter = 0;
-        lastTime = currentTime;
-        return rpm;
-    }
+    *pCounter = 0;
+    lastTime = currentTime;
+    return rpm;
+}
 
-    Mobile::Mobile()
+Mobile::Mobile()
 {
     turning = false;
 }
@@ -115,12 +116,12 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
     stop();
 }
 
+/**
+ * @brief set the mobile's translation and and angular velocity
+ * @param v translational velocity, m/s
+ * @param om angular velocity, rad/s
+*/
 void Mobile::setVelocity(float v, float om)
-    /**
-     * @brief set the mobile's translation and and angular velocity
-     * @param v translational velocity, m/s
-     * @param om angular velocity, rad/s
-     */
 {
     if(turning){
         bool y = finishTurn();
@@ -137,6 +138,20 @@ void Mobile::setVelocity(float v, float om)
         velY = velAngular * sin(direction);
     }
 }
+
+/**
+ * @brief get the mobile's wheel translation velocity
+ * @param wheel r, R, or l, L
+*/
+float Mobile::getVelocity(char w)
+    {
+        if(w == 'r' || w == 'R' ){
+            return wheelRight.getVelocity();
+        }
+        else if (w == 'l' || w == 'L' ){
+            return wheelLeft.getVelocity();
+        }
+    }
 
 /**
  * @brief turn the mobile by the specified angle in radians
