@@ -2,8 +2,8 @@
 #define ENABLE_MASTER_MODE
 
 /*The master and slave codes can communicate only through the i2c bus,
-   handled by the sendDataToMaster and receiveDataFromSlave routines.
-*/
+ handled by the sendDataToMaster and receiveDataFromSlave routines.
+ */
 #define SLAVE_ADDRESS 44 //an arbitrary slave address
 #define ENABLE_LOGGING
 
@@ -104,7 +104,7 @@ int dFront, rpmL, rpmR;
 #ifdef ENABLE_MASTER_MODE
 float turnAngle;
 boolean turningBack = false;
-Timer slaveTimer(100);
+Timer slaveTimer(100), mobileStuckTimer(3000);
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
@@ -226,59 +226,66 @@ void loop()
 {
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-  if(slaveTimer.done())receiveDataFromSlave();
-  
-//Release the mobile if it gets stuck
-  if(abs(rpmR) < 5){
-    if(abs(m.getVelocity('R')) > 0){
-      if(turningBack){
-         m.stopTurn();
-         turningBack = false;
-         m.setVelocity(SPEED_FACTOR, 0.);
+  if(slaveTimer.done()){
+    receiveDataFromSlave();
+
+    if(turningBack){
+      if(m.finishTurn()) turningBack = false;
+    }
+    if(dFront < TOO_CLOSE) {
+      if(!turningBack){
+        turningBack = true;
+        m.stopTurn();
+        m.turn(-SPEED_FACTOR, turnAngle);
+      }
+    }
+    else if (dFront < CLOSE){
+      // check a random number from 0 to 1
+      if(random(0, 2) == 0){
+        turnAngle = -PI;
       }
       else{
-        m.stopTurn();
-        m.turn(-SPEED_FACTOR, 0.);
+        turnAngle = PI;
       }
-    }
-  }
-  if(abs(rpmL) < 5){
-    if(abs(m.getVelocity('L')) > 0){
-      if(turningBack){
-         m.stopTurn();
-         turningBack = false;
-         m.setVelocity(SPEED_FACTOR, 0.);
-      }
-      else{
-        m.stopTurn();
-        m.turn(-SPEED_FACTOR, 0.);
-      }
-    }
-  }
-  
-  
-  if(turningBack){
-    if(m.finishTurn()) turningBack = false;
-  }
-  if(dFront < TOO_CLOSE) {
-    if(!turningBack){
-      turningBack = true;
-      m.stopTurn();
-      m.turn(-SPEED_FACTOR, turnAngle);
-    }
-  }
-  else if (dFront < CLOSE){
-    // check a random number from 0 to 1
-    if(random(0, 2) == 0){
-      turnAngle = -PI;
+      m.turn(SPEED_FACTOR, turnAngle/2.);
     }
     else{
-      turnAngle = PI;
+      m.setVelocity(SPEED_FACTOR, 0.);
     }
-    m.turn(SPEED_FACTOR, turnAngle/2.);
   }
-  else{
-    m.setVelocity(SPEED_FACTOR, 0.);
+  
+  if(mobileStuckTimer.done()){
+    //Release the mobile if it gets stuck
+    //check whether the right wheel was supposed to be spinning
+    if(abs(m.getVelocity('R')) > 0){
+      //if so, is it really spinning?
+      if(abs(rpmR) < 5){
+        if(turningBack){
+          m.stopTurn();
+          turningBack = false;
+          m.setVelocity(SPEED_FACTOR, 0.);
+        }
+        else{
+          m.stopTurn();
+          turningBack = true;
+          m.turn(-SPEED_FACTOR, turnAngle/10.);
+        }
+      }
+    }
+    if(abs(m.getVelocity('L')) > 0 ){
+      if(abs(rpmL) < 5){
+        if(turningBack){
+          m.stopTurn();
+          turningBack = false;
+          m.setVelocity(SPEED_FACTOR, 0.);
+        }
+        else{
+          m.stopTurn();
+          turningBack = true;
+          m.turn(-SPEED_FACTOR, turnAngle/10.);
+        }
+      }
+    }
   }
   //delay(100);
 
@@ -295,6 +302,7 @@ void loop()
 
   //--------------------------------}
 }
+
 
 
 
