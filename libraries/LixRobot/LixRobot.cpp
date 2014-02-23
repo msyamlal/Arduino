@@ -105,7 +105,7 @@ float WheelEncoder::senseRPM(){
 
 Mobile::Mobile()
 {
-    turning = false;
+    forcedMove = false;
 }
 
 void Mobile::set(Wheel &lw, Wheel &rw, float wb)
@@ -120,11 +120,24 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
  * @brief set the mobile's translation and and angular velocity
  * @param v translational velocity, m/s
  * @param om angular velocity, rad/s
+ * @param t time in miiliseconds to force the move
+ */
+    void Mobile::setVelocity(float v, float om, float t)
+    {
+        stopForcedMove();
+        setVelocity(v, om);
+        forcedMove = true;
+        forcedMoveTimer.set(t);
+    }
+/**
+ * @brief set the mobile's translation and and angular velocity
+ * @param v translational velocity, m/s
+ * @param om angular velocity, rad/s
 */
 void Mobile::setVelocity(float v, float om)
 {
-    if(turning){
-        bool y = finishTurn();
+    if(forcedMove){
+        bool y = finishForcedMove();
     }
     else{
         velRadial = v;
@@ -160,12 +173,12 @@ float Mobile::getVelocity(char w)
 */
 void Mobile::turn (float v, float theta)
 {
-    if(turning){
-        bool y = finishTurn();
+    if(forcedMove){
+        bool y = finishForcedMove();
     }
     else{
         if(abs(v) < 1E-5) return;
-        turning = true;
+        forcedMove = true;
         float vl = 0., vr = 0.;
         if(theta > 0){
             vl = 1.5*v;
@@ -174,19 +187,19 @@ void Mobile::turn (float v, float theta)
             vr = 1.5*v;
         }
         unsigned long turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
-        turnTimer.set(turningDeltaTime);
+        forcedMoveTimer.set(turningDeltaTime);
         wheelLeft.setVelocity(vl);
         wheelRight.setVelocity(vr);
     }
 }
     
-bool Mobile::finishTurn ()
+bool Mobile::finishForcedMove ()
 /**
     * @brief if the turn finished stop turning the mobile
 */
 {
-      if(turnTimer.done()){
-        turning = false;
+      if(forcedMoveTimer.done()){
+        forcedMove = false;
         wheelLeft.setVelocity(0.);
         wheelRight.setVelocity(0.);
         return true;
@@ -196,12 +209,12 @@ bool Mobile::finishTurn ()
     }
 }
     
-void Mobile::stopTurn ()
+void Mobile::stopForcedMove ()
 /**
     * @brief stop turning the mobile; cancels a previous turn command
 */
 {
-    turning = false;
+    forcedMove = false;
 }
 
     

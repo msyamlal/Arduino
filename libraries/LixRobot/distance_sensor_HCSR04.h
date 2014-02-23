@@ -17,12 +17,12 @@ namespace LixRobot
         {
         }
         
-        virtual unsigned int getDistance()
+        virtual long getDistance()
         {
             long distance = sensor.Ranging(CM);
             if (distance <= 0)
                 return maxDistance;
-            return (int) distance;
+            return distance;
         }
     private:
         Ultrasonic sensor;

@@ -53,17 +53,17 @@ namespace LixRobot
          * @param distance The maximum distance in centimeters that needs to be tracked.
          * @author Miguel Grinberg
          */
-        DistanceSensorDriver(unsigned int distance) : maxDistance(distance) {}
+        DistanceSensorDriver(long distance) : maxDistance(distance) {}
         
         /**
          * @brief Return the distance to the nearest obstacle in centimeters.
          * @return the distance to the closest object in centimeters
          *   or maxDistance if no object was detected
          */
-        virtual unsigned int getDistance() = 0;
+        virtual long getDistance() = 0;
         
     protected:
-        unsigned int maxDistance;
+        long maxDistance;
     };
         
     class RemoteControlDriver
@@ -201,11 +201,12 @@ namespace LixRobot
     public:
         Mobile();
         void set(Wheel &, Wheel &, float);
+        void setVelocity(float, float, float);
         void setVelocity(float, float);
         float getVelocity(char);
         void turn(float, float);
-        void stopTurn();
-        bool finishTurn();
+        void stopForcedMove();
+        bool finishForcedMove();
         void updateState();
         void goToGoal(float, float);
         void stop();
@@ -226,8 +227,8 @@ namespace LixRobot
         float positionY;
         float direction;
         
-        bool turning;
-        Timer turnTimer;
+        bool forcedMove;
+        Timer forcedMoveTimer;
     };
 
     class PIDController

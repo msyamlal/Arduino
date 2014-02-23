@@ -104,13 +104,32 @@ int dFront, rpmL, rpmR;
 #ifdef ENABLE_MASTER_MODE
 float turnAngle;
 boolean turningBack = false;
-Timer slaveTimer(100), mobileStuckTimer(3000);
+Timer slaveTimer(100), mobileStuckTimer(2000);
+int stuckCount = 0;
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
+void maneuverRelease(){
+  if(stuckCount < 3){
+    stuckCount++;
+  }
+  else{
+    stuckCount=0;
+    if(turningBack){
+      m.stopForcedMove();
+      turningBack = false;
+      m.setVelocity(SPEED_FACTOR, 0., 1000);
+    }
+    else{
+      m.stopForcedMove();
+      turningBack = true;
+      m.turn(-SPEED_FACTOR, PI/2.);
+    }
+  }
+}
 
 // The master program calls this function to request data from slave. This should exactly match
 // the function sendDataToMaster.
@@ -173,7 +192,7 @@ rwe(&counter[0], TICKS_PER_REVOLUTION );
 
 LixRobot::DistanceSensorHCSR04 distanceSensor(PIN_TRIG, PIN_ECHO, TOO_FAR);
 
-MovingAverage<unsigned int, 3> distanceAverage;
+MovingAverage<long, 3> distanceAverage;
 
 
 void countIntL()
@@ -210,9 +229,9 @@ void setup() {
   //--------ssssssssssssssssssssssssssss--------
 #else
   //Initialize the moving average with a large value
-  dFront = distanceAverage.add(TOO_FAR);
-  dFront = distanceAverage.add(TOO_FAR);
-  dFront = distanceAverage.add(TOO_FAR);
+  long dFrontLong = distanceAverage.add(TOO_FAR);
+  dFrontLong = distanceAverage.add(TOO_FAR);
+  dFrontLong = distanceAverage.add(TOO_FAR);
 
   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
@@ -230,12 +249,12 @@ void loop()
     receiveDataFromSlave();
 
     if(turningBack){
-      if(m.finishTurn()) turningBack = false;
+      if(m.finishForcedMove()) turningBack = false;
     }
     if(dFront < TOO_CLOSE) {
       if(!turningBack){
         turningBack = true;
-        m.stopTurn();
+        m.stopForcedMove();
         m.turn(-SPEED_FACTOR, turnAngle);
       }
     }
@@ -253,38 +272,23 @@ void loop()
       m.setVelocity(SPEED_FACTOR, 0.);
     }
   }
-  
+
   if(mobileStuckTimer.done()){
     //Release the mobile if it gets stuck
     //check whether the right wheel was supposed to be spinning
     if(abs(m.getVelocity('R')) > 0){
       //if so, is it really spinning?
       if(abs(rpmR) < 5){
-        if(turningBack){
-          m.stopTurn();
-          turningBack = false;
-          m.setVelocity(SPEED_FACTOR, 0.);
-        }
-        else{
-          m.stopTurn();
-          turningBack = true;
-          m.turn(-SPEED_FACTOR, turnAngle/10.);
-        }
+        maneuverRelease();
       }
     }
-    if(abs(m.getVelocity('L')) > 0 ){
+    else if(abs(m.getVelocity('L')) > 0 ){
       if(abs(rpmL) < 5){
-        if(turningBack){
-          m.stopTurn();
-          turningBack = false;
-          m.setVelocity(SPEED_FACTOR, 0.);
-        }
-        else{
-          m.stopTurn();
-          turningBack = true;
-          m.turn(-SPEED_FACTOR, turnAngle/10.);
-        }
+        maneuverRelease();
       }
+    }
+    else{
+      stuckCount = 0;
     }
   }
   //delay(100);
@@ -292,8 +296,8 @@ void loop()
   //--------ssssssssssssssssssssssssssss--------
 #else
   if(transmitReady==false){
-    dFront = distanceAverage.add(distanceSensor.getDistance());
-    dFront = min(255, dFront);
+    long dFrontLong = min (255, distanceAverage.add(distanceSensor.getDistance()));
+    dFront = (int) dFrontLong;
     rpmL = (int)lwe.senseRPM();
     rpmR = (int)rwe.senseRPM();
     transmitReady = true; //this flag is set to false after transmission is complete
@@ -302,6 +306,12 @@ void loop()
 
   //--------------------------------}
 }
+
+
+
+
+
+
 
 
 
