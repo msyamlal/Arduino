@@ -201,12 +201,13 @@ namespace LixRobot
     public:
         Mobile();
         void set(Wheel &, Wheel &, float);
+        void calibrateVel(float);
         void setVelocity(float, float, float);
         void setVelocity(float, float);
         float getVelocity(char);
         void turn(float, float);
         void stopForcedMove();
-        bool finishForcedMove();
+        bool forcedMoveFinished();
         void updateState();
         void goToGoal(float, float);
         void stop();
@@ -219,6 +220,8 @@ namespace LixRobot
     
         float velRadial;
         float velAngular;
+        float velScale;
+        float velMaxActual;
     
         float velX;
         float velY;
@@ -226,7 +229,7 @@ namespace LixRobot
         float positionX;
         float positionY;
         float direction;
-        
+
         bool forcedMove;
         Timer forcedMoveTimer;
     };

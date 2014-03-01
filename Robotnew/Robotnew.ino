@@ -14,7 +14,8 @@
 #define TICKS_PER_REVOLUTION 10
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
-#define SPEED_FACTOR 5 //about 23 cm/s
+//The scaled velocity is in the range -1 <= v <= 1
+//The maximum scaled omega = (2/L) * min (1-v, 1+v)
 //--------------------------------
 
 
@@ -102,6 +103,7 @@ int dFront, rpmL, rpmR;
 //Initilizations
 //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
+boolean initialize = true;
 float turnAngle;
 boolean turningBack = false;
 Timer slaveTimer(100), mobileStuckTimer(2000);
@@ -112,6 +114,7 @@ LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
+
 void maneuverRelease(){
   if(stuckCount < 3){
     stuckCount++;
@@ -121,12 +124,12 @@ void maneuverRelease(){
     if(turningBack){
       m.stopForcedMove();
       turningBack = false;
-      m.setVelocity(SPEED_FACTOR, 0., 1000);
+      m.setVelocity(1.0, 0., 1000);
     }
     else{
       m.stopForcedMove();
       turningBack = true;
-      m.turn(-SPEED_FACTOR, PI/2.);
+      m.turn(-1.0, PI/2.);
     }
   }
 }
@@ -151,6 +154,46 @@ void receiveDataFromSlave()
   { 
     rpmR = Wire.read(); // receive a byte as integer
   }
+}
+
+
+float calibrateMobile(){  // calibrate the mobile
+  float om = 2/WHEEL_BASE;
+  //1. Turn both wheels
+  m.setVelocity(1., 0.0);
+  delay(1000);
+  receiveDataFromSlave();
+  delay(1000);
+  receiveDataFromSlave();
+  float vBoth = 0.5*(rpmR*WHEEL_RADIUS + rpmL*WHEEL_RADIUS) * 2. * PI/60.;
+
+  /*m.stop();
+  delay(1000);
+  receiveDataFromSlave();
+  delay(1000);
+
+  //2. Turn the left wheels
+  m.setVelocity(1., -om);
+  delay(1000);
+  receiveDataFromSlave();
+  delay(1000);
+  receiveDataFromSlave();
+  float vL = (rpmL*WHEEL_RADIUS) * 2. * PI/60.;
+
+  m.stop();
+  delay(1000);
+  receiveDataFromSlave();
+  delay(1000);
+
+  //3. Turn the right wheels
+  m.setVelocity(1., om);
+  delay(1000);
+  receiveDataFromSlave();
+  delay(1000);
+  receiveDataFromSlave();
+  float vR = (rpmR*WHEEL_RADIUS) * 2. * PI/60.;
+  m.stop();*/
+  return vBoth;
 }
 
 //--------ssssssssssssssssssssssssssss--------
@@ -225,6 +268,9 @@ void setup() {
   m.set(lw, rw, WHEEL_BASE);
 
   Wire.begin();        // join i2c bus (address optional for master)
+  float v = calibrateMobile();
+  m.calibrateVel(v);
+
 
   //--------ssssssssssssssssssssssssssss--------
 #else
@@ -249,13 +295,13 @@ void loop()
     receiveDataFromSlave();
 
     if(turningBack){
-      if(m.finishForcedMove()) turningBack = false;
+      if(m.forcedMoveFinished()) turningBack = false;
     }
-    if(dFront < TOO_CLOSE) {
+    else if(dFront < TOO_CLOSE) {
       if(!turningBack){
         turningBack = true;
         m.stopForcedMove();
-        m.turn(-SPEED_FACTOR, turnAngle);
+        m.turn(0.0, turnAngle);
       }
     }
     else if (dFront < CLOSE){
@@ -266,10 +312,12 @@ void loop()
       else{
         turnAngle = PI;
       }
-      m.turn(SPEED_FACTOR, turnAngle/2.);
+      m.turn(0.5, turnAngle/2.);
+      //m.stop();
     }
     else{
-      m.setVelocity(SPEED_FACTOR, 0.);
+      m.setVelocity(1., 0.);
+      //m.stop();
     }
   }
 
@@ -306,6 +354,10 @@ void loop()
 
   //--------------------------------}
 }
+
+
+
+
 
 
 

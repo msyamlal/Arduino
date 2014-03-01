@@ -113,13 +113,42 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
     wheelLeft = lw;
     wheelRight = rw;
     wheelBase = wb;
+    velScale = 255.*(lw.getRadius() + rw.getRadius())/2.;
     stop();
 }
 
+    /**
+     * @brief calibrate the actual max mobile velocity
+     * @param v acutal max translational velocity, m/s
+     */
+    void Mobile::calibrateVel(float v)
+    {
+        velMaxActual = v;
+    }
+    /**
+     * @brief turn the mobile by the specified angle in radians
+     * @param v translational velocity, m/s
+     * @param theta angle to be turned, rad
+     */
+    void Mobile::turn (float v, float theta)
+    {
+        if(forcedMoveFinished()){
+            float omMaxActual = 2. * velMaxActual * min((1.-v), 1.+v)/wheelBase/4.;//4 is a calibration constant
+            if(omMaxActual < 1E-5) return;
+            unsigned long turningDeltaTime = 1000.0 * abs(theta) / (omMaxActual);
+            
+            float omMax = 2. * min(1.-v, 1.+v)/wheelBase;
+            omMax = copysign(omMax, theta);
+            setVelocity(v, omMax, turningDeltaTime);
+        }
+    }
 /**
  * @brief set the mobile's translation and and angular velocity
- * @param v translational velocity, m/s
- * @param om angular velocity, rad/s
+ * The scaled velocity is in the range -1 <= v <= 1
+ * The maximum scaled omega = (2/L) * min (1-v, 1+v)
+ * The velocity scale factor is 255*r
+ * @param v scaled translational velocity, 1/s
+ * @param om scaled angular velocity, rad/(m.s)
  * @param t time in miiliseconds to force the move
  */
     void Mobile::setVelocity(float v, float om, float t)
@@ -136,14 +165,11 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
 */
 void Mobile::setVelocity(float v, float om)
 {
-    if(forcedMove){
-        bool y = finishForcedMove();
-    }
-    else{
+    if(forcedMoveFinished()){
         velRadial = v;
         velAngular = om;
-        float vl = (2.0 * velRadial - velAngular * wheelBase)/ (2.0);
-        float vr = (2.0 * velRadial + velAngular * wheelBase)/ (2.0);
+        float vl = velScale * (2.0 * velRadial - velAngular * wheelBase)/ (2.0);
+        float vr = velScale * (2.0 * velRadial + velAngular * wheelBase)/ (2.0);
         wheelLeft.setVelocity(vl);
         wheelRight.setVelocity(vr);
         
@@ -166,44 +192,21 @@ float Mobile::getVelocity(char w)
         }
     }
 
-/**
- * @brief turn the mobile by the specified angle in radians
- * @param v translational velocity, m/s
- * @param theta angle to be turned, rad
-*/
-void Mobile::turn (float v, float theta)
-{
-    if(forcedMove){
-        bool y = finishForcedMove();
-    }
-    else{
-        if(abs(v) < 1E-5) return;
-        forcedMove = true;
-        float vl = 0., vr = 0.;
-        if(theta > 0){
-            vl = 1.5*v;
-        }
-        else{
-            vr = 1.5*v;
-        }
-        unsigned long turningDeltaTime = 7.5e4 * abs(theta) * (float)wheelBase/abs(v);
-        forcedMoveTimer.set(turningDeltaTime);
-        wheelLeft.setVelocity(vl);
-        wheelRight.setVelocity(vr);
-    }
-}
     
-bool Mobile::finishForcedMove ()
+bool Mobile::forcedMoveFinished ()
 /**
     * @brief if the turn finished stop turning the mobile
 */
 {
-      if(forcedMoveTimer.done()){
+    if(!forcedMove) return true;
+    
+    else if(forcedMoveTimer.done()){
+        Serial.println(millis());
         forcedMove = false;
-        wheelLeft.setVelocity(0.);
-        wheelRight.setVelocity(0.);
+        stop();
         return true;
     }
+    
     else{
         return false;
     }

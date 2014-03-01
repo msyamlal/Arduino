@@ -25,15 +25,17 @@ namespace LixRobot
 
         void setSpeed(int speed)
         {
-            currentSpeed = speed;
             if (speed >= 0) {
+                speed = min(255, speed);
                 digitalWrite(directionPin, LOW);
                 analogWrite(speedPin, speed); //PWM speed control
             }
             else {
+                speed = max(-255, speed);
                 digitalWrite(directionPin, HIGH);
                 analogWrite(speedPin, -speed); //PWM speed control
             }
+            currentSpeed = speed;
         }
         
         int getSpeed() const
