@@ -246,8 +246,8 @@ void Mobile::goToGoal(float d, float phi){
 }
 
 void Mobile::stop(){
-    wheelLeft.stop();
-    wheelRight.stop();    
+    stopForcedMove();
+    setVelocity(0., 0.);
 }
 
 
