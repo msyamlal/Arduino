@@ -311,22 +311,13 @@ void loop()
         }
       }
       else if(m.forcedMoveFinished()){
-        Serial.println("Finished Turning back");
         m.stop();
         long t = millis() - escapeTime;
-        Serial.print(escapeDistance);
-        Serial.print(" ");
-        Serial.print(escapeTime);
-        Serial.print(" ");
-        Serial.println(t);
         m.setVelocity(0., -OMEGA_MAX, t);
         turningToEscape = true;
       }
       else{
         if(dFront > escapeDistance){
-        Serial.print(dFront);
-        Serial.print(" ");
-        Serial.println(escapeDistance);
           escapeTime = millis();
           escapeDistance = dFront;
         }
@@ -334,7 +325,6 @@ void loop()
     }
     else if(dFront < TOO_CLOSE) {
       if(!turningBack){
-        Serial.println("Turning back");
         turningBack = true;
         escapeTime = millis();
         escapeDistance = dFront;
