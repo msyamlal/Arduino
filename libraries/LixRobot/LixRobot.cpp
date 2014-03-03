@@ -151,7 +151,7 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
  * @param om scaled angular velocity, rad/(m.s)
  * @param t time in miiliseconds to force the move
  */
-    void Mobile::setVelocity(float v, float om, float t)
+    void Mobile::setVelocity(float v, float om, long t)
     {
         stopForcedMove();
         setVelocity(v, om);
@@ -201,7 +201,6 @@ bool Mobile::forcedMoveFinished ()
     if(!forcedMove) return true;
     
     else if(forcedMoveTimer.done()){
-        Serial.println(millis());
         forcedMove = false;
         stop();
         return true;

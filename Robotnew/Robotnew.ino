@@ -14,6 +14,7 @@
 #define TICKS_PER_REVOLUTION 10
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
+#define OMEGA_MAX 2.0/WHEEL_BASE //maximum angular velocity (scaled)
 //The scaled velocity is in the range -1 <= v <= 1
 //The maximum scaled omega = (2/L) * min (1-v, 1+v)
 //--------------------------------
@@ -106,7 +107,11 @@ int dFront, rpmL, rpmR;
 boolean initialize = true;
 float turnAngle;
 boolean turningBack = false;
-Timer slaveTimer(100), mobileStuckTimer(2000);
+boolean turningToEscape = false;
+boolean mobileStuck = false;
+long escapeTime;
+int escapeDistance;
+Timer slaveTimer(100), mobileStuckTimer(1000);
 int stuckCount = 0;
 
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
@@ -121,6 +126,7 @@ void maneuverRelease(){
   }
   else{
     stuckCount=0;
+    mobileStuck = true;
     if(turningBack){
       m.stopForcedMove();
       turningBack = false;
@@ -128,8 +134,7 @@ void maneuverRelease(){
     }
     else{
       m.stopForcedMove();
-      turningBack = true;
-      m.turn(-1.0, PI/2.);
+      m.turn(-0.5, PI/10.);
     }
   }
 }
@@ -168,31 +173,31 @@ float calibrateMobile(){  // calibrate the mobile
   float vBoth = 0.5*(rpmR*WHEEL_RADIUS + rpmL*WHEEL_RADIUS) * 2. * PI/60.;
 
   /*m.stop();
-  delay(1000);
-  receiveDataFromSlave();
-  delay(1000);
-
-  //2. Turn the left wheels
-  m.setVelocity(1., -om);
-  delay(1000);
-  receiveDataFromSlave();
-  delay(1000);
-  receiveDataFromSlave();
-  float vL = (rpmL*WHEEL_RADIUS) * 2. * PI/60.;
-
-  m.stop();
-  delay(1000);
-  receiveDataFromSlave();
-  delay(1000);
-
-  //3. Turn the right wheels
-  m.setVelocity(1., om);
-  delay(1000);
-  receiveDataFromSlave();
-  delay(1000);
-  receiveDataFromSlave();
-  float vR = (rpmR*WHEEL_RADIUS) * 2. * PI/60.;
-  m.stop();*/
+   delay(1000);
+   receiveDataFromSlave();
+   delay(1000);
+   
+   //2. Turn the left wheels
+   m.setVelocity(1., -om);
+   delay(1000);
+   receiveDataFromSlave();
+   delay(1000);
+   receiveDataFromSlave();
+   float vL = (rpmL*WHEEL_RADIUS) * 2. * PI/60.;
+   
+   m.stop();
+   delay(1000);
+   receiveDataFromSlave();
+   delay(1000);
+   
+   //3. Turn the right wheels
+   m.setVelocity(1., om);
+   delay(1000);
+   receiveDataFromSlave();
+   delay(1000);
+   receiveDataFromSlave();
+   float vR = (rpmR*WHEEL_RADIUS) * 2. * PI/60.;
+   m.stop();*/
   return vBoth;
 }
 
@@ -294,14 +299,47 @@ void loop()
   if(slaveTimer.done()){
     receiveDataFromSlave();
 
-    if(turningBack){
-      if(m.forcedMoveFinished()) turningBack = false;
+    if(mobileStuck){
+      if(m.forcedMoveFinished()) mobileStuck = false;
+    }
+    else if(turningBack){
+      if(turningToEscape){
+        if(m.forcedMoveFinished()){
+          turningBack = false;
+          turningToEscape = false;
+          m.stop();
+        }
+      }
+      else if(m.forcedMoveFinished()){
+        Serial.println("Finished Turning back");
+        m.stop();
+        long t = millis() - escapeTime;
+        Serial.print(escapeDistance);
+        Serial.print(" ");
+        Serial.print(escapeTime);
+        Serial.print(" ");
+        Serial.println(t);
+        m.setVelocity(0., -OMEGA_MAX, t);
+        turningToEscape = true;
+      }
+      else{
+        if(dFront > escapeDistance){
+        Serial.print(dFront);
+        Serial.print(" ");
+        Serial.println(escapeDistance);
+          escapeTime = millis();
+          escapeDistance = dFront;
+        }
+      }
     }
     else if(dFront < TOO_CLOSE) {
       if(!turningBack){
+        Serial.println("Turning back");
         turningBack = true;
+        escapeTime = millis();
+        escapeDistance = dFront;
         m.stopForcedMove();
-        m.turn(0.0, turnAngle);
+        m.turn(0.0, 2.*PI);
       }
     }
     else if (dFront < CLOSE){
@@ -321,22 +359,24 @@ void loop()
     }
   }
 
-  if(mobileStuckTimer.done()){
-    //Release the mobile if it gets stuck
-    //check whether the right wheel was supposed to be spinning
-    if(abs(m.getVelocity('R')) > 0){
-      //if so, is it really spinning?
-      if(abs(rpmR) < 5){
-        maneuverRelease();
+  if(!mobileStuck){
+    if(mobileStuckTimer.done()){
+      //Release the mobile if it gets stuck
+      //check whether the right wheel was supposed to be spinning
+      if(abs(m.getVelocity('R')) > 0){
+        //if so, is it really spinning?
+        if(abs(rpmR) < 5){
+          maneuverRelease();
+        }
       }
-    }
-    else if(abs(m.getVelocity('L')) > 0 ){
-      if(abs(rpmL) < 5){
-        maneuverRelease();
+      else if(abs(m.getVelocity('L')) > 0 ){
+        if(abs(rpmL) < 5){
+          maneuverRelease();
+        }
       }
-    }
-    else{
-      stuckCount = 0;
+      else{
+        stuckCount = 0;
+      }
     }
   }
   //delay(100);
@@ -354,6 +394,9 @@ void loop()
 
   //--------------------------------}
 }
+
+
+
 
 
 
