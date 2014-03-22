@@ -27,8 +27,8 @@
 #define PIN_SPEED_A 5
 #define PIN_SPEED_B 6
 #define PIN_DIR_B 7
-#define PIN_BT_RX 16
-#define PIN_BT_TX 17
+#define PIN_BT_RX 13
+#define PIN_BT_TX 12
 //--------ssssssssssssssssssssssssssss--------
 #else
 #define PIN_TRIG 11
@@ -47,7 +47,7 @@
 //#define ENABLE_REMOTE_CONTROL_DRIVER_BLUESTICK
 //#define ENABLE_REMOTE_CONTROL_DRIVER_ROCKETBOT
 
-//#define ENABLE_BLUETOOTH
+#define ENABLE_BLUETOOTH
 //--------ssssssssssssssssssssssssssss--------
 #else
 // Distance sensor
@@ -114,6 +114,8 @@ int escapeDistance;
 Timer slaveTimer(100), mobileStuckTimer(1000);
 int stuckCount = 0;
 
+char btCommand ='g';
+
 LixRobot::MotorDFR lm(PIN_SPEED_A, PIN_DIR_A);
 LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
 LixRobot::Wheel lw, rw;
@@ -127,6 +129,7 @@ void maneuverRelease(){
   else{
     stuckCount=0;
     mobileStuck = true;
+    BTSerial.println("Stuck");
     if(turningBack){
       m.stopForcedMove();
       turningBack = false;
@@ -171,33 +174,6 @@ float calibrateMobile(){  // calibrate the mobile
   delay(1000);
   receiveDataFromSlave();
   float vBoth = 0.5*(rpmR*WHEEL_RADIUS + rpmL*WHEEL_RADIUS) * 2. * PI/60.;
-
-  /*m.stop();
-   delay(1000);
-   receiveDataFromSlave();
-   delay(1000);
-   
-   //2. Turn the left wheels
-   m.setVelocity(1., -om);
-   delay(1000);
-   receiveDataFromSlave();
-   delay(1000);
-   receiveDataFromSlave();
-   float vL = (rpmL*WHEEL_RADIUS) * 2. * PI/60.;
-   
-   m.stop();
-   delay(1000);
-   receiveDataFromSlave();
-   delay(1000);
-   
-   //3. Turn the right wheels
-   m.setVelocity(1., om);
-   delay(1000);
-   receiveDataFromSlave();
-   delay(1000);
-   receiveDataFromSlave();
-   float vR = (rpmR*WHEEL_RADIUS) * 2. * PI/60.;
-   m.stop();*/
   return vBoth;
 }
 
@@ -268,13 +244,22 @@ void setup() {
   // randomSeed() will then shuffle the random function.
   randomSeed(analogRead(0));
 
+  BTSerial.begin(9600);
+  /*   if(BTSerial.isListening()){
+   Serial.println("BT Slave is listening!");
+   }
+   */
+
   lw.set(&lm, WHEEL_RADIUS);
   rw.set(&rm, WHEEL_RADIUS);
   m.set(lw, rw, WHEEL_BASE);
 
   Wire.begin();        // join i2c bus (address optional for master)
+
   float v = calibrateMobile();
   m.calibrateVel(v);
+  BTSerial.print("Calibrated v = ");
+  BTSerial.println(v);
 
 
   //--------ssssssssssssssssssssssssssss--------
@@ -296,80 +281,106 @@ void loop()
 {
   //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
 #ifdef ENABLE_MASTER_MODE
-  if(slaveTimer.done()){
-    receiveDataFromSlave();
-
-    if(mobileStuck){
-      if(m.forcedMoveFinished()) mobileStuck = false;
+  /*  if (BTSerial.overflow()) {
+   Serial.println("SoftwareSerial overflow!"); 
+   } 
+   */
+  if (BTSerial.available() > 0) {
+    btCommand = BTSerial.read();
+    BTSerial.print(btCommand);
+    BTSerial.print(" ");
+    if(btCommand == 'g'){
+      BTSerial.println("=> Go");
     }
-    else if(turningBack){
-      if(turningToEscape){
-        if(m.forcedMoveFinished()){
-          turningBack = false;
-          turningToEscape = false;
+    else if(btCommand == 's'){
+      BTSerial.println("=> Stop");
+    }
+    else {
+      BTSerial.println("=> Command not known!");
+    }
+  }
+  if(btCommand == 's'){
+    m.stop();
+  }
+  else if (btCommand == 'g'){
+    if(slaveTimer.done()){
+      receiveDataFromSlave();
+
+      if(mobileStuck){
+        if(m.forcedMoveFinished()) mobileStuck = false;
+        BTSerial.println("Unstuck");
+       }
+      else if(turningBack){
+        if(turningToEscape){
+          if(m.forcedMoveFinished()){
+            turningBack = false;
+            turningToEscape = false;
+            BTSerial.println("Stopped turning");
+           m.stop();
+          }
+        }
+        else if(m.forcedMoveFinished()){
           m.stop();
+          long t = millis() - escapeTime;
+          m.setVelocity(0., -OMEGA_MAX, t);
+          turningToEscape = true;
+          BTSerial.println("Turning to escape");
+        }
+        else{
+          if(dFront > escapeDistance){
+            escapeTime = millis();
+            escapeDistance = dFront;
+          }
         }
       }
-      else if(m.forcedMoveFinished()){
-        m.stop();
-        long t = millis() - escapeTime;
-        m.setVelocity(0., -OMEGA_MAX, t);
-        turningToEscape = true;
-      }
-      else{
-        if(dFront > escapeDistance){
+      else if(dFront < TOO_CLOSE) {
+        if(!turningBack){
+          turningBack = true;
+          BTSerial.println("Turning back");
           escapeTime = millis();
           escapeDistance = dFront;
+          m.stopForcedMove();
+          m.turn(0.0, 2.*PI);
         }
       }
-    }
-    else if(dFront < TOO_CLOSE) {
-      if(!turningBack){
-        turningBack = true;
-        escapeTime = millis();
-        escapeDistance = dFront;
-        m.stopForcedMove();
-        m.turn(0.0, 2.*PI);
-      }
-    }
-    else if (dFront < CLOSE){
-      // check a random number from 0 to 1
-      if(random(0, 2) == 0){
-        turnAngle = -PI;
+      else if (dFront < CLOSE){
+        // check a random number from 0 to 1
+        if(random(0, 2) == 0){
+          turnAngle = -PI;
+        }
+        else{
+          turnAngle = PI;
+        }
+        m.turn(0.5, turnAngle/2.);
+        //m.stop();
       }
       else{
-        turnAngle = PI;
+        m.setVelocity(1., 0.);
+        //m.stop();
       }
-      m.turn(0.5, turnAngle/2.);
-      //m.stop();
     }
-    else{
-      m.setVelocity(1., 0.);
-      //m.stop();
-    }
-  }
 
-  if(!mobileStuck){
-    if(mobileStuckTimer.done()){
-      //Release the mobile if it gets stuck
-      //check whether the right wheel was supposed to be spinning
-      if(abs(m.getVelocity('R')) > 0){
-        //if so, is it really spinning?
-        if(abs(rpmR) < 5){
-          maneuverRelease();
+    if(!mobileStuck){
+      if(mobileStuckTimer.done()){
+        //Release the mobile if it gets stuck
+        //check whether the right wheel was supposed to be spinning
+        if(abs(m.getVelocity('R')) > 0){
+          //if so, is it really spinning?
+          if(abs(rpmR) < 5){
+            maneuverRelease();
+          }
         }
-      }
-      else if(abs(m.getVelocity('L')) > 0 ){
-        if(abs(rpmL) < 5){
-          maneuverRelease();
+        else if(abs(m.getVelocity('L')) > 0 ){
+          if(abs(rpmL) < 5){
+            maneuverRelease();
+          }
         }
-      }
-      else{
-        stuckCount = 0;
+        else{
+          stuckCount = 0;
+        }
       }
     }
   }
-  //delay(100);
 
   //--------ssssssssssssssssssssssssssss--------
 #else
@@ -384,6 +395,12 @@ void loop()
 
   //--------------------------------}
 }
+
+
+
+
+
+
 
 
 
