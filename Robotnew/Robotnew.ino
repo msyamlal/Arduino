@@ -165,9 +165,8 @@ void receiveDataFromSlave()
 }
 
 
-float calibrateMobile(){  // calibrate the mobile
-  float om = 2/WHEEL_BASE;
-  //1. Turn both wheels
+// calibrate the mobile velocity
+float calibrateMobile(){ 
   m.setVelocity(1., 0.0);
   delay(1000);
   receiveDataFromSlave();
@@ -271,7 +270,8 @@ void setup() {
 
   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
-  attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
+
+    attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
   attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
 #endif
   //--------------------------------}
@@ -302,21 +302,23 @@ void loop()
   if(btCommand == 's'){
     m.stop();
   }
-  else if (btCommand == 'g'){
+  else {
     if(slaveTimer.done()){
       receiveDataFromSlave();
 
       if(mobileStuck){
-        if(m.forcedMoveFinished()) mobileStuck = false;
-        BTSerial.println("Unstuck");
-       }
+        if(m.forcedMoveFinished()) {
+          mobileStuck = false;
+          BTSerial.println("Unstuck");
+        }
+      }
       else if(turningBack){
         if(turningToEscape){
           if(m.forcedMoveFinished()){
             turningBack = false;
             turningToEscape = false;
             BTSerial.println("Stopped turning");
-           m.stop();
+            m.stop();
           }
         }
         else if(m.forcedMoveFinished()){
@@ -334,14 +336,12 @@ void loop()
         }
       }
       else if(dFront < TOO_CLOSE) {
-        if(!turningBack){
-          turningBack = true;
-          BTSerial.println("Turning back");
-          escapeTime = millis();
-          escapeDistance = dFront;
-          m.stopForcedMove();
-          m.turn(0.0, 2.*PI);
-        }
+        turningBack = true;
+        BTSerial.println("Turning back");
+        escapeTime = millis();
+        escapeDistance = dFront;
+        m.stopForcedMove();
+        m.turn(0.0, 2.*PI);
       }
       else if (dFront < CLOSE){
         // check a random number from 0 to 1
@@ -395,6 +395,9 @@ void loop()
 
   //--------------------------------}
 }
+
+
+
 
 
 
