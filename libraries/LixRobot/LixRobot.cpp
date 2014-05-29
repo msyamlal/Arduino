@@ -133,7 +133,7 @@ void Mobile::set(Wheel &lw, Wheel &rw, float wb)
     void Mobile::turn (float v, float theta)
     {
         if(forcedMoveFinished()){
-            float omMaxActual = 2. * velMaxActual * min((1.-v), 1.+v)/wheelBase/4.;//4 is a calibration constant
+            float omMaxActual = 2. * velMaxActual * min((1.-v), 1.+v)/wheelBase;
             if(omMaxActual < 1E-5) return;
             unsigned long turningDeltaTime = 1000.0 * abs(theta) / (omMaxActual);
             

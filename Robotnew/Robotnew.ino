@@ -21,25 +21,23 @@
 
 
 //Make pin assignments
-//{-------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
-#ifdef ENABLE_MASTER_MODE
+
+#ifdef ENABLE_MASTER_MODE  //{Master block
 #define PIN_DIR_A 4
 #define PIN_SPEED_A 5
 #define PIN_SPEED_B 6
 #define PIN_DIR_B 7
 #define PIN_BT_RX 13
 #define PIN_BT_TX 12
-//--------ssssssssssssssssssssssssssss--------
-#else
+
+#else                     //Slave block
 #define PIN_TRIG 11
 #define PIN_ECHO 12
-#endif
-//--------------------------------}
+#endif                   //End of Master-Slave block}
 
-//Enable Device drivers
+//Select Device drivers
 
-//{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
-#ifdef ENABLE_MASTER_MODE
+#ifdef ENABLE_MASTER_MODE  //{Master block
 // Motor controller:
 //#define ENABLE_MOTOR_ADAFRUIT
 #define ENABLE_MOTOR_DFR
@@ -48,14 +46,14 @@
 //#define ENABLE_REMOTE_CONTROL_DRIVER_ROCKETBOT
 
 #define ENABLE_BLUETOOTH
-//--------ssssssssssssssssssssssssssss--------
-#else
+
+#else                     //Slave block
 // Distance sensor
 //#define ENABLE_DISTANCE_SENSOR_NEWPING
 #define ENABLE_DISTANCE_SENSOR_HCSR04
-#endif
-//--------------------------------}
+#endif                   //End of Master-Slave block}
 
+//Enable Device drivers
 
 #ifdef ENABLE_BLUETOOTH
 #include <SoftwareSerial.h>
@@ -102,10 +100,9 @@ int dFront, rpmL, rpmR;
 
 
 //Initilizations
-//{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
-#ifdef ENABLE_MASTER_MODE
+#ifdef ENABLE_MASTER_MODE  //{Master block
 boolean initialize = true;
-float turnAngle;
+float turnAngle = PI;
 boolean turningBack = false;
 boolean turningToEscape = false;
 boolean mobileStuck = false;
@@ -127,12 +124,14 @@ void maneuverRelease(){
     stuckCount++;
   }
   else{
-    stuckCount=0;
+    stuckCount = 0;
     mobileStuck = true;
     BTSerial.println("Stuck");
     if(turningBack){
       m.stopForcedMove();
       turningBack = false;
+      turningToEscape = false;
+      BTSerial.println("Stopped turning");
       m.setVelocity(1.0, 0., 1000);
     }
     else{
@@ -173,11 +172,10 @@ float calibrateMobile(){
   delay(1000);
   receiveDataFromSlave();
   float vBoth = 0.5*(rpmR*WHEEL_RADIUS + rpmL*WHEEL_RADIUS) * 2. * PI/60.;
-  return vBoth;
+  return vBoth/4.;//4 is a calibration constant
 }
 
-//--------ssssssssssssssssssssssssssss--------
-#else
+#else                     //Slave block
 // function that executes whenever data is requested by master. This should exactly match
 // the function receiveDataFromSlave. This function is registered as an event, see setup()
 int writeOrder = 0;
@@ -228,15 +226,13 @@ void countIntR()
   counter[1]++; //count the wheel encoder interrupts
 }
 
-#endif
-//--------------------------------}
+#endif                   //End of Master-Slave block}
 
 
 void setup() {
   Serial.begin(9600);
 
-  //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
-#ifdef ENABLE_MASTER_MODE
+#ifdef ENABLE_MASTER_MODE  //{Master block
   // if analog input pin 0 is unconnected, random analog
   // noise will cause the call to randomSeed() to generate
   // different seed numbers each time the sketch runs.
@@ -257,12 +253,12 @@ void setup() {
 
   float v = calibrateMobile();
   m.calibrateVel(v);
+  delay(1000);
   BTSerial.print("Calibrated v = ");
   BTSerial.println(v);
 
 
-  //--------ssssssssssssssssssssssssssss--------
-#else
+#else                     //Slave block
   //Initialize the moving average with a large value
   long dFrontLong = distanceAverage.add(TOO_FAR);
   dFrontLong = distanceAverage.add(TOO_FAR);
@@ -271,16 +267,14 @@ void setup() {
   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
 
-    attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
+  attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
   attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
-#endif
-  //--------------------------------}
+#endif                   //End of Master-Slave block}
 }
 
 void loop()
 {
-  //{--------mmmmmmmmmmmmmmmmmmmmmmmmmmmm--------
-#ifdef ENABLE_MASTER_MODE
+#ifdef ENABLE_MASTER_MODE  //{Master block
   /*  if (BTSerial.overflow()) {
    Serial.println("SoftwareSerial overflow!"); 
    } 
@@ -317,8 +311,9 @@ void loop()
           if(m.forcedMoveFinished()){
             turningBack = false;
             turningToEscape = false;
-            BTSerial.println("Stopped turning");
             m.stop();
+            delay(1000);
+            BTSerial.println("Stopped turning");
           }
         }
         else if(m.forcedMoveFinished()){
@@ -326,12 +321,21 @@ void loop()
           long t = millis() - escapeTime;
           m.setVelocity(0., -OMEGA_MAX, t);
           turningToEscape = true;
-          BTSerial.println("Turning to escape");
+          BTSerial.print("Turning to escape: ");
+          BTSerial.println(escapeDistance);
         }
         else{
           if(dFront > escapeDistance){
+            if(dFront >=255){
+              turningBack = false;
+              turningToEscape = false;
+              m.stopForcedMove();
+              m.stop();
+              BTSerial.println("Stopped turning. Escape route found.");
+            }
             escapeTime = millis();
             escapeDistance = dFront;
+            BTSerial.println(dFront);
           }
         }
       }
@@ -341,9 +345,10 @@ void loop()
         escapeTime = millis();
         escapeDistance = dFront;
         m.stopForcedMove();
-        m.turn(0.0, 2.*PI);
+        //m.turn(0.0, 2.*PI);
+        m.setVelocity(0., OMEGA_MAX, 2.*PI*250./OMEGA_MAX);
       }
-      else if (dFront < CLOSE){
+     /* else if (dFront < CLOSE){
         // check a random number from 0 to 1
         if(random(0, 2) == 0){
           turnAngle = -PI;
@@ -353,7 +358,7 @@ void loop()
         }
         m.turn(0.5, turnAngle/2.);
         //m.stop();
-      }
+      }*/
       else{
         m.setVelocity(1., 0.);
         //m.stop();
@@ -370,7 +375,9 @@ void loop()
             maneuverRelease();
           }
         }
+        //check whether the left wheel was supposed to be spinning
         else if(abs(m.getVelocity('L')) > 0 ){
+          //if so, is it really spinning?
           if(abs(rpmL) < 5){
             maneuverRelease();
           }
@@ -382,8 +389,7 @@ void loop()
     }
   }
 
-  //--------ssssssssssssssssssssssssssss--------
-#else
+#else                     //Slave block
   if(transmitReady==false){
     long dFrontLong = min (255, distanceAverage.add(distanceSensor.getDistance()));
     dFront = (int) dFrontLong;
@@ -391,10 +397,10 @@ void loop()
     rpmR = (int)rwe.senseRPM();
     transmitReady = true; //this flag is set to false after transmission is complete
   }
-#endif
+#endif                   //End of Master-Slave block}
 
-  //--------------------------------}
 }
+
 
 
 
