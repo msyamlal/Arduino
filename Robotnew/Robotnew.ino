@@ -15,6 +15,7 @@
 #define WHEEL_RADIUS 3.25E-2 //wheel radius (m)
 #define WHEEL_BASE  14.7E-2 //wheel base (m)
 #define OMEGA_MAX 2.0/WHEEL_BASE //maximum angular velocity (scaled)
+#define T_FULL_CIRCLE 2.*PI*250./OMEGA_MAX //t (ms) to make a 360 degree turn
 //The scaled velocity is in the range -1 <= v <= 1
 //The maximum scaled omega = (2/L) * min (1-v, 1+v)
 //--------------------------------
@@ -98,6 +99,11 @@ SoftwareSerial BTSerial(PIN_BT_RX, PIN_BT_TX);
 #include <Wire.h>
 int dFront, rpmL, rpmR;
 
+float sign(float x){
+  if (x > 0) return 1;
+  if (x < 0) return -1;
+  return 0;
+}
 
 //Initilizations
 #ifdef ENABLE_MASTER_MODE  //{Master block
@@ -118,7 +124,6 @@ LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
-
 void maneuverRelease(){
   if(stuckCount < 3){
     stuckCount++;
@@ -136,7 +141,7 @@ void maneuverRelease(){
     }
     else{
       m.stopForcedMove();
-      m.turn(-0.5, PI/10.);
+      m.turn(-0.5, turnAngle/10.);
     }
   }
 }
@@ -253,6 +258,7 @@ void setup() {
 
   float v = calibrateMobile();
   m.calibrateVel(v);
+  m.stop();
   delay(1000);
   BTSerial.print("Calibrated v = ");
   BTSerial.println(v);
@@ -319,7 +325,7 @@ void loop()
         else if(m.forcedMoveFinished()){
           m.stop();
           long t = millis() - escapeTime;
-          m.setVelocity(0., -OMEGA_MAX, t);
+          m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, t);
           turningToEscape = true;
           BTSerial.print("Turning to escape: ");
           BTSerial.println(escapeDistance);
@@ -333,32 +339,29 @@ void loop()
               m.stop();
               BTSerial.println("Stopped turning. Escape route found.");
             }
-            escapeTime = millis();
-            escapeDistance = dFront;
+            else{
+              escapeTime = millis();
+              escapeDistance = dFront;
+            }
             BTSerial.println(dFront);
           }
         }
       }
-      else if(dFront < TOO_CLOSE) {
+      else if(dFront < TOO_CLOSE && dFront > 0) { //ignore avalue 0, which seems to be a sensor error
         turningBack = true;
-        BTSerial.println("Turning back");
         escapeTime = millis();
         escapeDistance = dFront;
         m.stopForcedMove();
-        //m.turn(0.0, 2.*PI);
-        m.setVelocity(0., OMEGA_MAX, 2.*PI*250./OMEGA_MAX);
-      }
-     /* else if (dFront < CLOSE){
-        // check a random number from 0 to 1
         if(random(0, 2) == 0){
           turnAngle = -PI;
         }
         else{
           turnAngle = PI;
         }
-        m.turn(0.5, turnAngle/2.);
-        //m.stop();
-      }*/
+        m.setVelocity(0., sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE);
+        BTSerial.print("Turning back: ");
+        BTSerial.println(escapeDistance);
+      }
       else{
         m.setVelocity(1., 0.);
         //m.stop();
