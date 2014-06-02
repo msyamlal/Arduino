@@ -109,6 +109,7 @@ float sign(float x){
 #ifdef ENABLE_MASTER_MODE  //{Master block
 boolean initialize = true;
 float turnAngle = PI;
+float velocity = 1.0;
 boolean turningBack = false;
 boolean turningToEscape = false;
 boolean mobileStuck = false;
@@ -124,27 +125,6 @@ LixRobot::MotorDFR rm(PIN_SPEED_B, PIN_DIR_B);
 LixRobot::Wheel lw, rw;
 LixRobot::Mobile m;
 
-void maneuverRelease(){
-  if(stuckCount < 3){
-    stuckCount++;
-  }
-  else{
-    stuckCount = 0;
-    mobileStuck = true;
-    BTSerial.println("Stuck");
-    if(turningBack){
-      m.stopForcedMove();
-      turningBack = false;
-      turningToEscape = false;
-      BTSerial.println("Stopped turning");
-      m.setVelocity(1.0, 0., 1000);
-    }
-    else{
-      m.stopForcedMove();
-      m.turn(-0.5, turnAngle/10.);
-    }
-  }
-}
 
 // The master program calls this function to request data from slave. This should exactly match
 // the function sendDataToMaster.
@@ -273,7 +253,7 @@ void setup() {
   Wire.begin(SLAVE_ADDRESS);                // join i2c bus with my address
   Wire.onRequest(sendDataToMaster); // register event that sends data to master
 
-  attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
+    attachInterrupt(0, countIntL, CHANGE);    //init the interrupt mode for the digital pin 2    
   attachInterrupt(1, countIntR, CHANGE);    //init the interrupt mode for the digital pin 3    
 #endif                   //End of Master-Slave block}
 }
@@ -303,6 +283,43 @@ void loop()
     m.stop();
   }
   else {
+    if(!mobileStuck){
+      if(mobileStuckTimer.done()){
+        boolean stuck=false;
+        //check whether a wheel was supposed to be spinning, but not spinning
+
+        if(abs(m.getVelocity('R')) > 0 && (abs(rpmR) < 5))stuck = true;
+        if(abs(m.getVelocity('L')) > 0 && (abs(rpmL) < 5))stuck = true;
+        if(stuck){
+          stuckCount++;
+        }
+        else{
+          stuckCount = 0;
+        }
+        if(stuckCount >= 3){
+          m.stopForcedMove();
+          stuckCount = 0;
+          mobileStuck = true;
+          BTSerial.println("Stuck");
+
+          //Maneuver to release stuck mobile
+          if(turningBack){
+            //turn in opposite direction to the last turn
+            turnAngle *= -1.0;
+            if(turningToEscape){
+              m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
+            }
+            else{
+              m.setVelocity(0., sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
+            }
+          }
+          else{
+            m.setVelocity(-velocity, 0.0, 500.);//go back, then make a 90 degree turn; see if(mobileStuck) block
+          }
+        }
+
+      }
+    }
     if(slaveTimer.done()){
       receiveDataFromSlave();
 
@@ -310,6 +327,15 @@ void loop()
         if(m.forcedMoveFinished()) {
           mobileStuck = false;
           BTSerial.println("Unstuck");
+          if(turningBack){
+            turningBack = false;
+            turningToEscape = false;
+            BTSerial.println("Stopped turning");
+            m.setVelocity(velocity, 0.);
+          }
+          else{
+            m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);//make a 90 degree turn
+          }
         }
       }
       else if(turningBack){
@@ -347,7 +373,7 @@ void loop()
           }
         }
       }
-      else if(dFront < TOO_CLOSE && dFront > 0) { //ignore avalue 0, which seems to be a sensor error
+      else if(dFront < TOO_CLOSE && dFront > 0) { //ignore a value of 0, which seems to be a sensor error
         turningBack = true;
         escapeTime = millis();
         escapeDistance = dFront;
@@ -363,33 +389,11 @@ void loop()
         BTSerial.println(escapeDistance);
       }
       else{
-        m.setVelocity(1., 0.);
+        m.setVelocity(velocity, 0.);
         //m.stop();
       }
     }
 
-    if(!mobileStuck){
-      if(mobileStuckTimer.done()){
-        //Release the mobile if it gets stuck
-        //check whether the right wheel was supposed to be spinning
-        if(abs(m.getVelocity('R')) > 0){
-          //if so, is it really spinning?
-          if(abs(rpmR) < 5){
-            maneuverRelease();
-          }
-        }
-        //check whether the left wheel was supposed to be spinning
-        else if(abs(m.getVelocity('L')) > 0 ){
-          //if so, is it really spinning?
-          if(abs(rpmL) < 5){
-            maneuverRelease();
-          }
-        }
-        else{
-          stuckCount = 0;
-        }
-      }
-    }
   }
 
 #else                     //Slave block
@@ -403,6 +407,14 @@ void loop()
 #endif                   //End of Master-Slave block}
 
 }
+
+
+
+
+
+
+
+
 
 
 
