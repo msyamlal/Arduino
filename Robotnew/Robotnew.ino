@@ -305,12 +305,11 @@ void loop()
           //Maneuver to release stuck mobile
           if(turningBack){
             //turn in opposite direction to the last turn
-            turnAngle *= -1.0;
             if(turningToEscape){
-              m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
+              m.setVelocity(0., sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
             }
             else{
-              m.setVelocity(0., sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
+              m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);
             }
           }
           else{
@@ -325,16 +324,19 @@ void loop()
 
       if(mobileStuck){
         if(m.forcedMoveFinished()) {
-          mobileStuck = false;
-          BTSerial.println("Unstuck");
           if(turningBack){
+            mobileStuck = false;
+            BTSerial.println("Unstuck");
             turningBack = false;
             turningToEscape = false;
             BTSerial.println("Stopped turning");
             m.setVelocity(velocity, 0.);
           }
           else{
-            m.setVelocity(0., -sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/4.);//make a 90 degree turn
+            turningBack = true;
+            BTSerial.println("Turning back");
+            turnAngle *= -1.0;
+            m.setVelocity(0., sign(turnAngle)*OMEGA_MAX, T_FULL_CIRCLE/2.);//make a 180 degree turn
           }
         }
       }
@@ -407,6 +409,9 @@ void loop()
 #endif                   //End of Master-Slave block}
 
 }
+
+
+
 
 
 
