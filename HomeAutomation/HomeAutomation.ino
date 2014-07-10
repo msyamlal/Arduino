@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <Ethernet.h>
+#include <VirtualWire.h>
 
 byte mac[] = { 
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
@@ -22,6 +23,10 @@ void setup(){
   //enable serial data print
   Serial.begin(9600);
   Serial.println("server LED test 1.0"); // so I can keep track of what is loaded}
+
+  // Initialize radio frequency communication
+  vw_setup(2000); // Bits per sec
+
 }
 void loop(){
   // Create a client connection
@@ -85,6 +90,17 @@ void loop(){
     }
   }
 
+  // Send message through radio frequency communication
+  send("Hello there");
+  delay(1000); 
+
 }
+
+void send (char *message)
+{
+vw_send((uint8_t *)message, strlen(message));
+vw_wait_tx(); // Wait until the whole message is gone
+}
+
 
 
