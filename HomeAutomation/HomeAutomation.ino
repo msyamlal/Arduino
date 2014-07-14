@@ -2,6 +2,11 @@
 #include <Ethernet.h>
 #include <VirtualWire.h>
 
+const int led_pin = 6;
+const int transmit_pin = 12;
+const int receive_pin = 4;
+const int transmit_en_pin = 3;
+
 byte mac[] = { 
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
 byte ip[] = { 
@@ -16,7 +21,7 @@ String readString;
 
 
 void setup(){
-  pinMode(6, OUTPUT); //pin selected to control
+  pinMode(led_pin, OUTPUT); //pin selected to control
   //start Ethernet
   Ethernet.begin(mac, ip, gateway, subnet);
   server.begin();
@@ -25,6 +30,9 @@ void setup(){
   Serial.println("server LED test 1.0"); // so I can keep track of what is loaded}
 
   // Initialize radio frequency communication
+  vw_set_tx_pin(transmit_pin);
+  vw_set_rx_pin(receive_pin);
+  vw_set_ptt_pin(transmit_en_pin);
   vw_setup(2000); // Bits per sec
 
 }
@@ -73,13 +81,15 @@ void loop(){
           ///////////////////// control arduino pin
           if(readString.indexOf("?lighton") >0)//checks for on
           {
-            digitalWrite(6, HIGH);    // set pin 4 high
+            digitalWrite(led_pin, HIGH);    // set pin 4 high
+            send("Turn On");
             Serial.println("Led On");
           }
           else{
             if(readString.indexOf("?lightoff") >0)//checks for off
             {
-              digitalWrite(6, LOW);    // set pin 4 low
+              digitalWrite(led_pin, LOW);    // set pin 4 low
+              send("Turn Off");
               Serial.println("Led Off");
             }
           }
@@ -90,17 +100,15 @@ void loop(){
     }
   }
 
-  // Send message through radio frequency communication
-  send("Hello there");
-  delay(1000); 
-
 }
 
 void send (char *message)
 {
-vw_send((uint8_t *)message, strlen(message));
-vw_wait_tx(); // Wait until the whole message is gone
+  vw_send((uint8_t *)message, strlen(message));
+  vw_wait_tx(); // Wait until the whole message is gone
 }
+
+
 
 
 
