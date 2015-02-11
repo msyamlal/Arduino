@@ -1,5 +1,5 @@
 /*
-SimpleReceive
+SimpleReceive for ATTiny84
  This sketch displays text strings received using VirtualWire
  Connect the Receiver data pin to Arduino pin 11
  */
@@ -10,22 +10,21 @@ SimpleReceive
 byte message[10]; // a buffer to store the incoming messages
 byte messageLength = 10; // the size of the message
 
-const int receivePin = 11;
-const int relay1Pin = 5;
-const int ledPin = 7;
+const int receivePin = 7;
+const int relay1Pin = 1;
+const int ledPin = 0;
 
 unsigned long rebootInterval= 86400000; //reboot Arduino at this interval (milliseconds)
 
 void setup()
 {
-  Serial.begin(9600);
-  Serial.println("Device is ready");
+  //Serial.begin(9600);
+  //Serial.println("Device is ready");
 
   pinMode(relay1Pin, OUTPUT);      // sets the digital pin as output
   pinMode(ledPin, OUTPUT);      // sets the digital pin as output
 
   digitalWrite(relay1Pin, LOW);        // Prevents relays from starting up engaged
-  digitalWrite(ledPin, HIGH);   // sets the LED on
 
   // Initialize the IO and ISR
   vw_set_rx_pin(receivePin);
@@ -39,13 +38,12 @@ void loop()
   if (vw_get_message(message, &messageLength)) // Non-blocking
   {
     String command;
-    Serial.println("received message");
     for (int i = 0; i < messageLength; i++)
     {
       command = String(command + char(message[i]));
-      Serial.write(message[i]);
+      //Serial.write(message[i]);
     }
-    Serial.println();
+    //Serial.println();
 
     if(command == "Dining Rm1"){
       digitalWrite(ledPin, HIGH);   // sets the LED on
