@@ -71,10 +71,13 @@ void setup(){
 }
 
 void loop(){
-  if(millis() > clockSyncInterval-6000)softwareReboot();
+  //if(millis() > clockSyncInterval-6000)softwareReboot();
 
   if (timeStatus() != timeNotSet) {
     //Serial.println(hour());
+    //reset the clock
+    if(hour() == 1 && minute() ==1)softwareReboot();
+    
     if(hour() >= 20 && hour() < 22 ){
       if(!timerOn){
         turnOn();
@@ -90,8 +93,11 @@ void loop(){
       }
     }
   }
+  else{
+    if(millis() > clockSyncInterval-6000)softwareReboot();
+  }
 
-//resend the signal to turn o or off the light, just incase the initial message was missed
+//resend the signal to turn on or off the light, just incase the initial message was missed
   if(resendTimer.done()){
     if(lightOn){
       turnOn();
