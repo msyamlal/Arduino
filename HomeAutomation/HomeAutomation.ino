@@ -53,7 +53,7 @@ void setup(){
   Serial.println("Start sync clock");
   syncClock();
   Serial.println("Done, sync clock");
-  
+
   pinMode(led_pin, OUTPUT); //pin selected to control
 
   //start Ethernet
@@ -77,7 +77,7 @@ void loop(){
     //Serial.println(hour());
     //reset the clock
     if(hour() == 1 && minute() ==1)softwareReboot();
-    
+
     if(hour() >= 20 && hour() < 22 ){
       if(!timerOn){
         turnOn();
@@ -97,7 +97,7 @@ void loop(){
     if(millis() > clockSyncInterval-6000)softwareReboot();
   }
 
-//resend the signal to turn on or off the light, just incase the initial message was missed
+  //resend the signal to turn on or off the light, just incase the initial message was missed
   if(resendTimer.done()){
     if(lightOn){
       turnOn();
@@ -132,7 +132,6 @@ void loop(){
           client.println("<HEAD>");
           client.println("<meta name='apple-mobile-web-app-capable' content='yes' />");
           client.println("<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent' />");
-          client.println("<link rel='stylesheet' type='text/css' href='http://homeautocss.net84.net/a.css' />");
           client.println("<TITLE>Home Automation</TITLE>");
           client.println("</HEAD>");
           client.println("<BODY>");
@@ -140,8 +139,27 @@ void loop(){
           client.println("<hr />");
           client.println("<br />");
 
-          client.println("<a href=\"/?lighton\"\">Turn On Light</a>");
-          client.println("<a href=\"/?lightoff\"\">Turn Off Light</a><br />"); 
+          client.println("Dining Rm   ");
+          /*if(lightOn == true){
+            Serial.println("Light on"); 
+          }
+          else {
+            Serial.println("Light off"); 
+          }*/
+
+          // if(lightOn){
+          client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
+          client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
+          // }
+          //else {
+          //client.println("<button style=\"color:#900;font-weight: bold;font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
+          // client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
+          // }
+
+          client.println("<script>");
+          client.println("function funTurnOn() {window.location.href=\"/?lighton\";}");
+          client.println("function funTurnOff() {window.location.href=\"/?lightoff\";}");
+          client.println("</script>");
 
           client.println("</BODY>");
           client.println("</HTML>");
@@ -190,7 +208,7 @@ void send (char *message)
 //* Synchrozing Arduino Clock *//
 void syncClock(){
   //wait for one minute, just in case there was a brownout and the router needs to comeback up
-  delay(60000);
+  //delay(60000);
   setSyncInterval(clockSyncInterval);//to a large value
   if (Ethernet.begin(mac) == 0) {
     /* no point in carrying on, so do nothing forevermore:
@@ -292,6 +310,8 @@ void softwareReboot()
   {
   }
 }
+
+
 
 
 
