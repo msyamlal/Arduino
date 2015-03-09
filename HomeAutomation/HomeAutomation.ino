@@ -16,6 +16,7 @@ const int transmit_en_pin = 3;
 boolean timerOn = false;
 boolean lightOn = false;
 Timer resendTimer(300000);
+String s123, s456;
 
 byte mac[] = { 
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
@@ -141,19 +142,8 @@ void loop(){
 
           client.println("Dining Rm   ");
 
-          //if(lightOn){
-          client.println("<button style=\"font-size: 150%;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
-          client.println("<button style=\"font-size: 150%;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
-          //}
-          /*else {
-          client.println("<button style=\"color:#900;font-weight: bold;font-size: 150%\;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
-          client.println("<button style=\"font-size: 150%\;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
-          }*/
-
-          client.println("<script>");
-          client.println("function funTurnOn() {window.location.href=\"/?lighton\";}");
-          client.println("function funTurnOff() {window.location.href=\"/?lightoff\";}");
-          client.println("</script>");
+          client.println("<button style=\"font-size: 150%;cursor: pointer\" onclick=\"window.location.href='/?lighton'\">TurnOn</button>"); 
+          client.println("<button style=\"font-size: 150%;cursor: pointer\" onclick=\"window.location.href='/?lightoff'\">TurnOff</button>"); 
 
           client.println("</BODY>");
           client.println("</HTML>");
@@ -202,7 +192,7 @@ void send (char *message)
 //* Synchrozing Arduino Clock *//
 void syncClock(){
   //wait for one minute, just in case there was a brownout and the router needs to comeback up
-  //delay(60000);
+  delay(60000);
   setSyncInterval(clockSyncInterval);//to a large value
   if (Ethernet.begin(mac) == 0) {
     /* no point in carrying on, so do nothing forevermore:
@@ -306,6 +296,7 @@ void softwareReboot()
   {
   }
 }
+
 
 
 
