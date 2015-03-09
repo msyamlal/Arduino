@@ -140,21 +140,15 @@ void loop(){
           client.println("<br />");
 
           client.println("Dining Rm   ");
-          /*if(lightOn == true){
-            Serial.println("Light on"); 
-          }
-          else {
-            Serial.println("Light off"); 
-          }*/
 
-          // if(lightOn){
-          client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
-          client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
-          // }
-          //else {
-          //client.println("<button style=\"color:#900;font-weight: bold;font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
-          // client.println("<button style=\"font-size: 150%\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
-          // }
+          //if(lightOn){
+          client.println("<button style=\"font-size: 150%;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
+          client.println("<button style=\"font-size: 150%;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
+          //}
+          /*else {
+          client.println("<button style=\"color:#900;font-weight: bold;font-size: 150%\;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOn()\">TurnOn</button>"); 
+          client.println("<button style=\"font-size: 150%\;cursor: pointer\" type=\"button\" value=\"Submit\" onclick=\"funTurnOff()\">TurnOff</button>"); 
+          }*/
 
           client.println("<script>");
           client.println("function funTurnOn() {window.location.href=\"/?lighton\";}");
@@ -228,6 +222,7 @@ void syncClock(){
   Udp.stop();
 }
 
+
 void digitalClockDisplay(){
   // digital clock display of the time
   Serial.print(hour());
@@ -241,6 +236,7 @@ void digitalClockDisplay(){
   Serial.print(year()); 
   Serial.println(); 
 }
+
 
 void printDigits(int digits){
   // utility for digital clock display: prints preceding colon and leading 0
