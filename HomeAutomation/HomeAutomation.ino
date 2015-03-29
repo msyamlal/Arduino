@@ -5,27 +5,40 @@
 
 #include <avr/wdt.h>
 
-#include <Time.h> 
+#include <Time.h>
 #include <EthernetUdp.h>
+
+#include <SD.h>
 
 const int led_pin = 6;
 const int transmit_pin = 12;
 const int receive_pin = 4;
 const int transmit_en_pin = 3;
 
+// On the Ethernet Shield, CS is pin 4. It's set as an output by default.
+// Note that even if it's not used as the CS pin, the hardware SS pin
+// (10 on most Arduino boards, 53 on the Mega) must be left as an output
+// or the SD library functions will not work.
+const int cs_pin = 4;
+const int ss_pin = 10;
+
 boolean timerOn = false;
 boolean lightOn = false;
 Timer resendTimer(300000);
 String s123, s456;
 
-byte mac[] = { 
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
-byte ip[] = { 
-  192, 168, 1, 177 }; // ip in lan
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+}; //physical mac address
+byte ip[] = {
+  192, 168, 1, 177
+}; // ip in lan
 byte gateway[] = {
-  192, 168, 1, 1 }; // internet access via router
-byte subnet[] = { 
-  255, 255, 255, 0 }; //subnet mask
+  192, 168, 1, 1
+}; // internet access via router
+byte subnet[] = {
+  255, 255, 255, 0
+}; //subnet mask
 EthernetServer server(80); //server port
 
 // NTP Servers:
@@ -39,21 +52,22 @@ const int timeZone = -4;  // Eastern Daylight Time (USA)
 //const int timeZone = -8;  // Pacific Standard Time (USA)
 //const int timeZone = -7;  // Pacific Daylight Time (USA)
 
-unsigned long clockSyncInterval= 86400000; //Synchronize the clock at this interval (milliseconds)
+unsigned long clockSyncInterval = 86400000; //Synchronize the clock at this interval (milliseconds)
 
 EthernetUDP Udp;
 unsigned int localPort = 8888;  // local port to listen for UDP packets
 
 String readString;
 
+File myFile;
 
-void setup(){
+void setup() {
   //enable serial data print
   Serial.begin(9600);
 
-  Serial.println("Start sync clock");
-  syncClock();
-  Serial.println("Done, sync clock");
+  /* Serial.println("Start sync clock");
+   syncClock();
+   Serial.println("Done, sync clock");*/
 
   pinMode(led_pin, OUTPUT); //pin selected to control
 
@@ -69,41 +83,51 @@ void setup(){
   vw_set_ptt_pin(transmit_en_pin);
   vw_setup(2000); // Bits per sec
 
+
+  //Serial.print("Initializing SD card...");
+  pinMode(ss_pin, OUTPUT);
+
+  if (!SD.begin(cs_pin)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
+
 }
 
-void loop(){
+void loop() {
   //if(millis() > clockSyncInterval-6000)softwareReboot();
 
   if (timeStatus() != timeNotSet) {
     //Serial.println(hour());
     //reset the clock
-    if(hour() == 1 && minute() ==1)softwareReboot();
+    if (hour() == 1 && minute() == 1)softwareReboot();
 
-    if(hour() >= 20 && hour() < 22 ){
-      if(!timerOn){
+    if (hour() >= 20 && hour() < 22 ) {
+      if (!timerOn) {
         turnOn();
         lightOn = true;
         timerOn = true;
       }
     }
-    else{
-      if(timerOn){
+    else {
+      if (timerOn) {
         turnOff();
         lightOn = false;
         timerOn = false;
       }
     }
   }
-  else{
-    if(millis() > clockSyncInterval-6000)softwareReboot();
+  else {
+    if (millis() > clockSyncInterval - 6000)softwareReboot();
   }
 
   //resend the signal to turn on or off the light, just incase the initial message was missed
-  if(resendTimer.done()){
-    if(lightOn){
+  if (resendTimer.done()) {
+    if (lightOn) {
       turnOn();
     }
-    else{
+    else {
       turnOff();
     }
   }
@@ -125,46 +149,46 @@ void loop(){
         //if HTTP request has ended
         if (c == '\n') {
 
-          Serial.println(readString); //print to serial monitor for debuging
-          client.println("HTTP/1.1 200 OK"); //send new page
-          client.println("Content-Type: text/html");
-          client.println();
-          client.println("<HTML>");
-          client.println("<HEAD>");
-          client.println("<meta name='apple-mobile-web-app-capable' content='yes' />");
-          client.println("<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent' />");
-          client.println("<TITLE>Home Automation</TITLE>");
-          client.println("</HEAD>");
-          client.println("<BODY>");
-          client.println("<H1>Home Automation</H1>");
-          client.println("<hr />");
-          client.println("<br />");
-
-          client.println("Dining Rm   ");
-
-          client.println("<button style=\"font-size: 150%;cursor: pointer\" onclick=\"window.location.href='/?lighton'\">TurnOn</button>"); 
-          client.println("<button style=\"font-size: 150%;cursor: pointer\" onclick=\"window.location.href='/?lightoff'\">TurnOff</button>"); 
-
-          client.println("</BODY>");
-          client.println("</HTML>");
-          delay(1);
-          //stopping client
-          client.stop();
           ///////////////////// control arduino pin
-          if(readString.indexOf("?lighton") >0)//checks for on
+          if (readString.indexOf("?lighton") > 0) //checks for on
           {
             turnOn();
             lightOn = true;
           }
-          else{
-            if(readString.indexOf("?lightoff") >0)//checks for off
+          else {
+            if (readString.indexOf("?lightoff") > 0) //checks for off
             {
               turnOff();
               lightOn = false;
             }
           }
+          Serial.println(readString); //print to serial monitor for debuging
           //clearing string for next read
-          readString="";
+          readString = "";
+
+          client.println("HTTP/1.1 200 OK"); //send new page
+          client.println("Content-Type: text/html");
+          client.println();
+          // open the microSD file for reading:
+          myFile = SD.open("test.txt");
+          if (myFile) {
+            Serial.println("test.txt");
+
+            // read from the file until there's nothing else in it:
+            while (myFile.available()) {
+              char c = myFile.read();
+              client.print(c);
+              //Serial.write(c);
+            }
+            // close the file:
+            myFile.close();
+          } else {
+            // if the file didn't open, print an error:
+            Serial.println("error opening test.txt");
+          }
+          delay(1);
+          //stopping client
+          client.stop();
         }
       }
     }
@@ -172,13 +196,13 @@ void loop(){
 
 }
 
-void turnOn(){
-  digitalWrite(led_pin, HIGH);    
+void turnOn() {
+  digitalWrite(led_pin, HIGH);
   send("Dining Rm1");
   Serial.println("Light turned on");
 }
-void turnOff(){
-  digitalWrite(led_pin, LOW);    
+void turnOff() {
+  digitalWrite(led_pin, LOW);
   send("Dining Rm0");
   Serial.println("Light turned Off");
 }
@@ -190,9 +214,9 @@ void send (char *message)
 }
 
 //* Synchrozing Arduino Clock *//
-void syncClock(){
+void syncClock() {
   //wait for one minute, just in case there was a brownout and the router needs to comeback up
-  delay(60000);
+  //delay(60000);
   setSyncInterval(clockSyncInterval);//to a large value
   if (Ethernet.begin(mac) == 0) {
     /* no point in carrying on, so do nothing forevermore:
@@ -207,13 +231,13 @@ void syncClock(){
   Serial.println(Ethernet.localIP());
   Udp.begin(localPort);
   Serial.println("waiting for sync");
-  setSyncProvider(getNtpTime);  
-  digitalClockDisplay();
+  setSyncProvider(getNtpTime);
+  //digitalClockDisplay();
   Udp.stop();
 }
 
 
-void digitalClockDisplay(){
+/*void digitalClockDisplay(){
   // digital clock display of the time
   Serial.print(hour());
   printDigits(minute());
@@ -223,8 +247,8 @@ void digitalClockDisplay(){
   Serial.print(" ");
   Serial.print(month());
   Serial.print(" ");
-  Serial.print(year()); 
-  Serial.println(); 
+  Serial.print(year());
+  Serial.println();
 }
 
 
@@ -234,7 +258,8 @@ void printDigits(int digits){
   if(digits < 10)
     Serial.print('0');
   Serial.print(digits);
-}
+}*/
+
 /*-------- NTP code ----------*/
 
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
@@ -281,7 +306,7 @@ void sendNTPpacket(IPAddress &address)
   packetBuffer[14]  = 49;
   packetBuffer[15]  = 52;
   // all NTP fields have been given values, now
-  // you can send a packet requesting a timestamp:                 
+  // you can send a packet requesting a timestamp:
   Udp.beginPacket(address, 123); //NTP requests are to port 123
   Udp.write(packetBuffer, NTP_PACKET_SIZE);
   Udp.endPacket();
@@ -292,10 +317,11 @@ void sendNTPpacket(IPAddress &address)
 void softwareReboot()
 {
   wdt_enable(WDTO_15MS);
-  while(1)
+  while (1)
   {
   }
 }
+
 
 
 
