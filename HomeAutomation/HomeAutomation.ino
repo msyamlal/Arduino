@@ -11,6 +11,17 @@
 #include <SD.h>
 
 //#define LOGGING //turn on print statments
+#ifdef LOGGING
+
+#define logpln(x) Serial.println(x)
+#define logp(x) Serial.println(x)
+
+#else
+
+#define logpln(...)
+#define logp(...)
+
+#endif
 
 const int timeToTurnOn = 20;
 const int timeToTurnOff = 22;
@@ -70,15 +81,11 @@ void setup() {
   //enable serial data print
   Serial.begin(9600);
 
-#ifdef LOGGING
-  Serial.println("Start sync clock");
-#endif
+  logpln("Start sync clock");
 
-   syncClock();
-   
-#ifdef LOGGING
-   Serial.println("Done, sync clock");
-#endif
+  syncClock();
+
+  logpln("Done, sync clock");
 
   pinMode(led_pin, OUTPUT); //pin selected to control
 
@@ -86,9 +93,7 @@ void setup() {
   Ethernet.begin(mac, ip, gateway, subnet);
   server.begin();
 
-#ifdef LOGGING
-  Serial.println("server LED test 1.0"); // so I can keep track of what is loaded}
-#endif
+  logpln("server LED test 1.0");
 
   // Initialize radio frequency communication
   vw_set_tx_pin(transmit_pin);
@@ -97,20 +102,21 @@ void setup() {
   vw_setup(2000); // Bits per sec
 
 
-#ifdef LOGGING
-  Serial.print("Initializing SD card...");
-#endif
+  /*#ifdef LOGGING
+    Serial.print("Initializing SD card...");
+  #endif*/
+  logpln("Initializing SD card...");
+
   pinMode(ss_pin, OUTPUT);
 
   if (!SD.begin(cs_pin)) {
-#ifdef LOGGING
-    Serial.println("initialization failed!");
-#endif
+    /*#ifdef LOGGING
+        Serial.println("initialization failed!");
+    #endif*/
+    logpln("initialization failed!");
     return;
   }
-#ifdef LOGGING
-  Serial.println("initialization done.");
-#endif
+  logpln("initialization done.");
 
 }
 
@@ -118,9 +124,7 @@ void loop() {
   //if(millis() > clockSyncInterval-6000)softwareReboot();
 
   if (timeStatus() != timeNotSet) {
-#ifdef LOGGING
-    Serial.println(hour());
-#endif
+    logpln(hour());
     //reset the clock
     if (hour() == 1 && minute() == 1)softwareReboot();
 
@@ -164,9 +168,8 @@ void loop() {
         if (readString.length() < 100) {
           //store characters to string
           readString += c;
-#ifdef LOGGING
-          Serial.print(c);
-#endif
+          logp(c);
+
         }
 
         //if HTTP request has ended
@@ -185,18 +188,14 @@ void loop() {
               lightOn = false;
             }
           }
-#ifdef LOGGING
-          Serial.println(readString); //print to serial monitor for debuging
-#endif
+          logpln(readString);
           //clearing string for next read
           readString = "";
-          
+
           // open the microSD file for reading the web page:
           myFile = SD.open("webpage.txt");
           if (myFile) {
-#ifdef LOGGING
-            Serial.println("webpage.txt");
-#endif
+            logpln("webpage.txt");
             // read from the file until there's nothing else in it:
             while (myFile.available()) {
               char c = myFile.read();
@@ -205,9 +204,7 @@ void loop() {
             myFile.close();
           } else {
 
-#ifdef LOGGING
-            Serial.println("error opening webpage.txt");
-#endif
+            logpln("error opening webpage.txt");
           }
           delay(1);
           //stopping client
@@ -222,16 +219,12 @@ void loop() {
 void turnOn() {
   digitalWrite(led_pin, HIGH);
   send("Dining Rm1");
-#ifdef LOGGING
-  Serial.println("Light turned on");
-#endif
+  logpln("Light turned on");
 }
 void turnOff() {
   digitalWrite(led_pin, LOW);
   send("Dining Rm0");
-#ifdef LOGGING
-  Serial.println("Light turned Off");
-#endif
+  logpln("Light turned Off");
 }
 
 void send (char *message)
@@ -248,27 +241,19 @@ void syncClock() {
   if (Ethernet.begin(mac) == 0) {
     /* no point in carrying on, so do nothing forevermore:
      while (1) {*/
-#ifdef LOGGING
-    Serial.println("Failed to configure Ethernet using DHCP");
-#endif
+    logpln("Failed to configure Ethernet using DHCP");
     /*delay(10000);
      }*/
-#ifdef LOGGING
-    Serial.println("Clock syn failed!");
-#endif
+    logpln("Clock syn failed!");
     return;
   }
-  
-#ifdef LOGGING
-  Serial.print("IP number assigned by DHCP is ");
-  Serial.println(Ethernet.localIP());
-#endif
+
+  logpln("IP number assigned by DHCP is ");
+  logpln(Ethernet.localIP());
 
   Udp.begin(localPort);
-  
-#ifdef LOGGING
-  Serial.println("waiting for sync");
-#endif
+
+  logpln("waiting for sync");
 
   setSyncProvider(getNtpTime);
   //digitalClockDisplay();
@@ -277,7 +262,7 @@ void syncClock() {
 
 #ifdef LOGGING
 
-void digitalClockDisplay(){
+void digitalClockDisplay() {
   // digital clock display of the time
   Serial.print(hour());
   printDigits(minute());
@@ -292,10 +277,10 @@ void digitalClockDisplay(){
 }
 
 
-void printDigits(int digits){
+void printDigits(int digits) {
   // utility for digital clock display: prints preceding colon and leading 0
   Serial.print(":");
-  if(digits < 10)
+  if (digits < 10)
     Serial.print('0');
   Serial.print(digits);
 }
@@ -309,17 +294,14 @@ byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 time_t getNtpTime()
 {
   while (Udp.parsePacket() > 0) ; // discard any previously received packets
-#ifdef LOGGING
-  Serial.println("Transmit NTP Request");
-#endif
+  logpln("Transmit NTP Request");
+
   sendNTPpacket(timeServer);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
     int size = Udp.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-#ifdef LOGGING
-      Serial.println("Receive NTP Response");
-#endif
+      logpln("Receive NTP Response");
       Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
@@ -330,9 +312,7 @@ time_t getNtpTime()
       return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
     }
   }
-#ifdef LOGGING
-  Serial.println("No NTP Response :-(");
-#endif
+  logpln("No NTP Response :-(");
   return 0; // return 0 if unable to get the time
 }
 
