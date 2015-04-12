@@ -10,6 +10,7 @@
 
 #include <SD.h>
 
+//-------------------------------------------
 //#define LOGGING //turn on print statments
 #ifdef LOGGING
 
@@ -22,9 +23,25 @@
 #define logp(...)
 
 #endif
+//-------------------------------------------
 
-const int timeToTurnOn = 20;
-const int timeToTurnOff = 22;
+struct twoBytes {
+  byte onHour;
+  byte offHour;
+};
+
+twoBytes devices[5];
+
+struct htmlData{
+  twoBytes tb;
+  String label;
+};
+
+const int hourToTurnOn = 20;
+const int hourToTurnOff = 22;
+
+const int hourToReboot = 1;
+const int minuteToReboot = 1;
 
 const int led_pin = 6;
 const int transmit_pin = 12;
@@ -73,7 +90,7 @@ unsigned long clockSyncInterval = 86400000; //Synchronize the clock at this inte
 EthernetUDP Udp;
 unsigned int localPort = 8888;  // local port to listen for UDP packets
 
-String readString;
+String htmlString;
 
 File myFile;
 
@@ -102,17 +119,11 @@ void setup() {
   vw_setup(2000); // Bits per sec
 
 
-  /*#ifdef LOGGING
-    Serial.print("Initializing SD card...");
-  #endif*/
   logpln("Initializing SD card...");
 
   pinMode(ss_pin, OUTPUT);
 
   if (!SD.begin(cs_pin)) {
-    /*#ifdef LOGGING
-        Serial.println("initialization failed!");
-    #endif*/
     logpln("initialization failed!");
     return;
   }
@@ -126,9 +137,9 @@ void loop() {
   if (timeStatus() != timeNotSet) {
     logpln(hour());
     //reset the clock
-    if (hour() == 1 && minute() == 1)softwareReboot();
+    if (hour() == hourToReboot && minute() == minuteToReboot)softwareReboot();
 
-    if (hour() >= timeToTurnOn && hour() < timeToTurnOff ) {
+    if (hour() >= hourToTurnOn && hour() < hourToTurnOff ) {
       if (!timerOn) {
         turnOn();
         lightOn = true;
@@ -165,9 +176,9 @@ void loop() {
         char c = client.read();
 
         //read char by char HTTP request
-        if (readString.length() < 100) {
+        if (htmlString.length() < 100) {
           //store characters to string
-          readString += c;
+          htmlString += c;
           logp(c);
 
         }
@@ -176,21 +187,27 @@ void loop() {
         if (c == '\n') {
 
           ///////////////////// control arduino pin
-          if (readString.indexOf("?lighton") > 0) //checks for on
+          if (htmlString.indexOf("?lighton") > 0) //checks for on
           {
             turnOn();
             lightOn = true;
           }
-          else {
-            if (readString.indexOf("?lightoff") > 0) //checks for off
-            {
-              turnOff();
-              lightOn = false;
-            }
+          else if (htmlString.indexOf("?lightoff") > 0) //checks for off
+          {
+            turnOff();
+            lightOn = false;
           }
-          logpln(readString);
+          else if (htmlString.indexOf("onTime") > 0) //checks for form submission
+          {
+            htmlData i = parseHtmlForm(htmlString);
+            Serial.println(htmlString);
+            Serial.println(i.tb.onHour);
+            Serial.println(i.tb.offHour);
+            Serial.println(i.label);
+          }
+          logpln(htmlString);
           //clearing string for next read
-          readString = "";
+          htmlString = "";
 
           // open the microSD file for reading the web page:
           myFile = SD.open("webpage.txt");
@@ -227,6 +244,24 @@ void turnOff() {
   logpln("Light turned Off");
 }
 
+struct htmlData parseHtmlForm(String s)
+{
+  byte i,j;
+  htmlData hd;
+  i = htmlString.indexOf("=");
+  j = htmlString.indexOf("&", i);
+  hd.tb.onHour = (byte) s.substring(i+1,j).toInt();
+  
+  i = htmlString.indexOf("=", i+1);
+  j = htmlString.indexOf("&", i);
+  hd.tb.offHour = (byte) s.substring(i+1,j).toInt();
+  
+  i = htmlString.indexOf("=", i+1);
+  hd.label = s.substring(i+1,i+9);
+  
+  return hd;
+}
+
 void send (char *message)
 {
   vw_send((uint8_t *)message, strlen(message));
@@ -236,7 +271,7 @@ void send (char *message)
 //* Synchrozing Arduino Clock *//
 void syncClock() {
   //wait for one minute, just in case there was a brownout and the router needs to comeback up
-  delay(60000);
+  //delay(60000);
   setSyncInterval(clockSyncInterval);//to a large value
   if (Ethernet.begin(mac) == 0) {
     /* no point in carrying on, so do nothing forevermore:
@@ -248,7 +283,7 @@ void syncClock() {
     return;
   }
 
-  logpln("IP number assigned by DHCP is ");
+  logp("IP number assigned by DHCP is ");
   logpln(Ethernet.localIP());
 
   Udp.begin(localPort);
