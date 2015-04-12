@@ -30,15 +30,15 @@ struct twoBytes {
   byte offHour;
 };
 
-twoBytes devices[5];
+twoBytes devices[2];
 
 struct htmlData{
   twoBytes tb;
   String label;
 };
 
-const int hourToTurnOn = 20;
-const int hourToTurnOff = 22;
+//const int hourToTurnOn = 20;
+//const int hourToTurnOff = 22;
 
 const int hourToReboot = 1;
 const int minuteToReboot = 1;
@@ -139,7 +139,7 @@ void loop() {
     //reset the clock
     if (hour() == hourToReboot && minute() == minuteToReboot)softwareReboot();
 
-    if (hour() >= hourToTurnOn && hour() < hourToTurnOff ) {
+    if (hour() >= devices[0].onHour && hour() < devices[0].offHour) {
       if (!timerOn) {
         turnOn();
         lightOn = true;
@@ -200,10 +200,13 @@ void loop() {
           else if (htmlString.indexOf("onTime") > 0) //checks for form submission
           {
             htmlData i = parseHtmlForm(htmlString);
-            Serial.println(htmlString);
+            devices[0].onHour  = i.tb.onHour;
+            devices[0].offHour = i.tb.offHour;
+            
+            /*Serial.println(htmlString);
             Serial.println(i.tb.onHour);
             Serial.println(i.tb.offHour);
-            Serial.println(i.label);
+            Serial.println(i.label);*/
           }
           logpln(htmlString);
           //clearing string for next read
@@ -249,6 +252,9 @@ struct htmlData parseHtmlForm(String s)
   byte i,j;
   htmlData hd;
   i = htmlString.indexOf("=");
+  hd.label = s.substring(i+1,i+9);
+  
+  i = htmlString.indexOf("=", i+1);
   j = htmlString.indexOf("&", i);
   hd.tb.onHour = (byte) s.substring(i+1,j).toInt();
   
@@ -256,8 +262,6 @@ struct htmlData parseHtmlForm(String s)
   j = htmlString.indexOf("&", i);
   hd.tb.offHour = (byte) s.substring(i+1,j).toInt();
   
-  i = htmlString.indexOf("=", i+1);
-  hd.label = s.substring(i+1,i+9);
   
   return hd;
 }

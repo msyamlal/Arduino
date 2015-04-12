@@ -1,0 +1,39 @@
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<HTML>
+<HEAD>
+<meta name='apple-mobile-web-app-capable' content='yes' />
+<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent' />
+<TITLE>Home Automation</TITLE>
+</HEAD>
+<BODY>
+<H1>Home Automation</H1>
+<hr />
+<br />
+
+<form method="GET">
+
+<input style="font-size:150%; width:180px" type="text" name=“location" maxlength="8" value="
+DiningRm
+">
+
+<br>
+<input type="number" name="onTime" style="width:50px" value=
+20
+>
+&nbsp
+<input type="number" name="offTime" style="width:50px" value=
+22
+>
+<input type="submit" value="Submit">
+</form>
+
+<button style="font-size: 100%;cursor: pointer" onclick="window.location.href='/?lighton'">turnOn</button>
+&nbsp &nbsp &nbsp
+<button style="font-size: 100%;cursor: pointer" onclick="window.location.href='/?lightoff'">turnOff</button>
+
+
+
+</BODY>
+</HTML>
