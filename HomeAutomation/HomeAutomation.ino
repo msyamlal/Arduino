@@ -1,4 +1,4 @@
-#include "LixRobot.h"
+//#include "LixRobot.h"
 #include <SPI.h>
 #include <Ethernet.h>
 #include <VirtualWire.h>
@@ -32,13 +32,10 @@ struct twoBytes {
 
 twoBytes devices[2];
 
-struct htmlData{
+struct htmlData {
   twoBytes tb;
   String label;
 };
-
-//const int hourToTurnOn = 20;
-//const int hourToTurnOff = 22;
 
 const int hourToReboot = 1;
 const int minuteToReboot = 1;
@@ -57,8 +54,7 @@ const int ss_pin = 10;
 
 boolean timerOn = false;
 boolean lightOn = false;
-Timer resendTimer(300000);
-String s123, s456;
+//Timer resendTimer(300000);
 
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
@@ -85,14 +81,20 @@ const int timeZone = -4;  // Eastern Daylight Time (USA)
 //const int timeZone = -8;  // Pacific Standard Time (USA)
 //const int timeZone = -7;  // Pacific Daylight Time (USA)
 
-unsigned long clockSyncInterval = 86400000; //Synchronize the clock at this interval (milliseconds)
+const unsigned long clockSyncInterval = 86400000; //Synchronize the clock at this interval (milliseconds)
 
 EthernetUDP Udp;
-unsigned int localPort = 8888;  // local port to listen for UDP packets
+const unsigned int localPort = 8888;  // local port to listen for UDP packets
 
 String htmlString;
 
+
 File myFile;
+//these are hard-wired line numbers starting with 0 at which the label, onHour and offHour are written
+const int line4Label = 17;
+const int line4OnHour = 22;
+const int line4OffHour = 26;
+
 
 void setup() {
   //enable serial data print
@@ -129,10 +131,12 @@ void setup() {
   }
   logpln("initialization done.");
 
+  //Initialize settings by reading microSD
+  readMicroSD();
+  
 }
 
 void loop() {
-  //if(millis() > clockSyncInterval-6000)softwareReboot();
 
   if (timeStatus() != timeNotSet) {
     logpln(hour());
@@ -159,14 +163,20 @@ void loop() {
   }
 
   //resend the signal to turn on or off the light, just incase the initial message was missed
-  if (resendTimer.done()) {
+ /* if (resendTimer.done()) {
     if (lightOn) {
       turnOn();
     }
     else {
       turnOff();
     }
-  }
+  }*/
+    if (lightOn) {
+      turnOn();
+    }
+    else {
+      turnOff();
+    }
 
   // Create a client connection
   EthernetClient client = server.available();
@@ -202,11 +212,9 @@ void loop() {
             htmlData i = parseHtmlForm(htmlString);
             devices[0].onHour  = i.tb.onHour;
             devices[0].offHour = i.tb.offHour;
-            
-            /*Serial.println(htmlString);
-            Serial.println(i.tb.onHour);
-            Serial.println(i.tb.offHour);
-            Serial.println(i.label);*/
+
+            writeHtmldata(i);
+
           }
           logpln(htmlString);
           //clearing string for next read
@@ -249,21 +257,102 @@ void turnOff() {
 
 struct htmlData parseHtmlForm(String s)
 {
-  byte i,j;
+  byte i, j;
   htmlData hd;
   i = htmlString.indexOf("=");
-  hd.label = s.substring(i+1,i+9);
-  
-  i = htmlString.indexOf("=", i+1);
+  hd.label = s.substring(i + 1, i + 9);
+
+  i = htmlString.indexOf("=", i + 1);
   j = htmlString.indexOf("&", i);
-  hd.tb.onHour = (byte) s.substring(i+1,j).toInt();
-  
-  i = htmlString.indexOf("=", i+1);
+  hd.tb.onHour = (byte) s.substring(i + 1, j).toInt();
+
+  i = htmlString.indexOf("=", i + 1);
   j = htmlString.indexOf("&", i);
-  hd.tb.offHour = (byte) s.substring(i+1,j).toInt();
-  
-  
+  hd.tb.offHour = (byte) s.substring(i + 1, j).toInt();
+
+
   return hd;
+}
+
+//struct htmlData readMicroSD()
+void readMicroSD()
+{
+  //htmlData hd;
+  myFile = SD.open("webpage.txt");
+  myFile.seek(0);
+  if (myFile) {
+    logpln("webpage.txt");
+    int i = 0;
+    while (myFile.available()) {
+      char c = myFile.read();
+      if (c == '\n') {
+        i++;
+      }
+
+      //these are hard-wired line numbers starting with 0 at which the label, onHour and offHour are written
+      if (i == line4OnHour) {
+        devices[0].onHour = readTime();
+      }
+      else if (i == line4OffHour) {
+        devices[0].offHour = readTime();
+      }
+    }
+    myFile.close();
+  }
+  else {
+    logpln("error opening webpage.txt");
+  }
+  //delay(1);
+}
+
+void writeHtmldata(htmlData hd)
+{
+  myFile = SD.open("webpage.txt", FILE_WRITE);
+  myFile.seek(0);
+  if (myFile) {
+    logpln("webpage.txt");
+    int i = 0;
+    while (myFile.available()) {
+      char c = myFile.read();
+      if (c == '\n') {
+        i++;
+      }
+      //these are hard-wired line numbers starting with 0 at which the label, onHour and offHour are written
+      if (i == line4Label) {
+        for (int i  = 0; i < hd.label.length(); i++) {
+          myFile.write(hd.label[i]);
+        }
+      }
+      else if (i == line4OnHour) {
+        writeTime(hd.tb.onHour);
+      }
+      else if (i == line4OffHour) {
+        writeTime(hd.tb.offHour);
+      }
+    }
+    myFile.close();
+  }
+  else {
+    logpln("error opening webpage.txt");
+  }
+  //delay(1);
+}
+
+//Write the time to microSD
+void writeTime(byte b) {
+  char c;
+  c = '0' + b / 10;
+  myFile.write(c);
+  c = '0' + b % 10;
+  myFile.write(c);
+}
+
+//Read the time from microSD
+byte readTime() {
+  byte b;
+  b = (myFile.read() - '0') * 10;
+  b += (myFile.read() - '0');
+  return b;
 }
 
 void send (char *message)
@@ -275,17 +364,14 @@ void send (char *message)
 //* Synchrozing Arduino Clock *//
 void syncClock() {
   //wait for one minute, just in case there was a brownout and the router needs to comeback up
-  //delay(60000);
+  delay(60000);
   setSyncInterval(clockSyncInterval);//to a large value
   if (Ethernet.begin(mac) == 0) {
-    /* no point in carrying on, so do nothing forevermore:
-     while (1) {*/
     logpln("Failed to configure Ethernet using DHCP");
-    /*delay(10000);
-     }*/
     logpln("Clock syn failed!");
     return;
   }
+  
 
   logp("IP number assigned by DHCP is ");
   logpln(Ethernet.localIP());
@@ -297,6 +383,7 @@ void syncClock() {
   setSyncProvider(getNtpTime);
   //digitalClockDisplay();
   Udp.stop();
+  
 }
 
 #ifdef LOGGING
@@ -387,9 +474,6 @@ void softwareReboot()
   {
   }
 }
-
-
-
 
 
 
